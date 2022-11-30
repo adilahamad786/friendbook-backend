@@ -4,16 +4,14 @@ const auth = require("../middleware/auth");
 
 // REGISTER/CREATE/SIGNUP A USER
 router.post("/signup", async (req, res) => {
-  try {
-    // Create a user
-    const user = new User(req.body);
+  // Create a user
+  const user = new User(req.body);
+  // Generate a jwt token
+  const token = await user.generateAuthToken();
 
-    // Generate a jwt token
-    const token = await user.generateAuthToken();
-    console.log("Token has been generated!");
+  try {
     // Save user and respond
     await user.save();
-    console.log("User has been saved!", user, token);
     res.status(201).send({ user, token });
   } catch (error) {
     res.status(500).send(error);
@@ -40,12 +38,11 @@ router.post("/login", async (req, res) => {
 router.post("/logout", auth, async (req, res) => {
   try {
     req.user.tokens = req.user.tokens.filter((tokenObject) => {
-      console.log("F", tokenObject.token, "L", req.token);
       return tokenObject.token !== req.token;
     });
 
     await req.user.save();
-    res.send("Ok");
+    res.send();
   } catch (error) {
     res.status(500).send(error);
   }
@@ -53,30 +50,30 @@ router.post("/logout", auth, async (req, res) => {
 
 // UPDATE USER
 router.put("/me", auth, async (req, res) => {
+  const updateRequest = Object.keys(req.body);
+
+  const allowedUpdate = [
+    "username",
+    "email",
+    "password",
+    "age",
+    "profilePicture",
+    "coverPicture",
+    "description",
+    "city",
+    "from",
+    "relationship",
+  ];
+
+  const isValidUpdate = updateRequest.every((update) =>
+    allowedUpdate.includes(update)
+  );
+
+  if (!isValidUpdate) {
+    return res.status(400).send({ error: "Invalid update!" });
+  }
+
   try {
-    const updateRequest = Object.keys(req.body);
-
-    const allowedUpdate = [
-      "username",
-      "email",
-      "password",
-      "age",
-      "profilePicture",
-      "coverPicture",
-      "description",
-      "city",
-      "from",
-      "relationship",
-    ];
-
-    const isValidUpdate = updateRequest.every((update) =>
-      allowedUpdate.includes(update)
-    );
-
-    if (!isValidUpdate) {
-      throw new Error({ error: "Invalid update!" });
-    }
-
     updateRequest.forEach((update) => (req.user[update] = req.body[update]));
 
     await req.user.save();
@@ -99,8 +96,9 @@ router.delete("/me", auth, async (req, res) => {
 
 // GET ALL USER
 router.get("/allUsers", auth, async (req, res) => {
+  const users = await User.find();
+
   try {
-    const users = await User.find();
     const userList = users.map((user) => {
       return { username: user.username, profilePicture: user.profilePicture };
     });
@@ -125,22 +123,45 @@ router.get("/", auth, async (req, res) => {
   }
 });
 
-// GET ALL FRIENDS
-router.get("/friends/:userId", auth, async (req, res) => {
+// GET ALL FOLLOWINGS
+router.get("/followings/:userId", auth, async (req, res) => {
+  const user = await User.findById(req.params.userId);
+
   try {
-    const user = await User.findById(req.params.userId);
-    const friends = await Promise.all(
-      user.followings.map((friendId) => {
-        return User.findById(friendId);
+    const followings = await Promise.all(
+      user.followings.map((followingId) => {
+        return User.findById(followingId);
       })
     );
 
-    let friendList = [];
-    friends.map((friend) => {
-      const { _id, username, profilePicture } = friend;
-      friendList.push({ _id, username, profilePicture });
+    let followingList = [];
+    followings.map((following) => {
+      const { _id, username, profilePicture } = following;
+      followingList.push({ _id, username, profilePicture });
     });
-    res.status(200).json(friendList);
+    res.status(200).json(followingList);
+  } catch (error) {
+    res.status(500).json(error);
+  }
+});
+
+// GET ALL FOLLOWERS
+router.get("/followers/:userId", auth, async (req, res) => {
+  const user = await User.findById(req.params.userId);
+
+  try {
+    const followers = await Promise.all(
+      user.followers.map((followerId) => {
+        return User.findById(followerId);
+      })
+    );
+
+    let followerList = [];
+    followers.map((follower) => {
+      const { _id, username, profilePicture } = follower;
+      followerList.push({ _id, username, profilePicture });
+    });
+    res.status(200).json(followerList);
   } catch (error) {
     res.status(500).json(error);
   }
