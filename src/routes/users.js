@@ -125,6 +125,49 @@ router.put(
   }
 );
 
+
+// GET USER PROFILEPICTURE
+router.get('/:id/profile-picture', async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id);
+
+    if (!user || user.profilePicture) {
+      return res.status(400).json({ error: "Profile picture not found!" });
+    }
+
+    res.set("Content-Type", user.profilePicture.mimetype);
+    res.send(user.profilePicture.buffer.buffer)
+  }
+  catch (error) {
+    if (error.reason) {
+      res.status(400).json({ error: "Profile picture not found!" });
+    } else {
+      res.status(500).json({ error: error._message });
+    }
+  }
+});
+
+// GET USER COVERPICTURE
+router.get('/:id/cover-picture', async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id);
+
+    if (!user || user.coverPicture) {
+      return res.status(400).json({ error: "Cover picture not found!" });
+    }
+
+    res.set("Content-Type", user.coverPicture.mimetype);
+    res.send(user.coverPicture.buffer.buffer)
+  }
+  catch (error) {
+    if (error.reason) {
+      res.status(400).json({ error: "Cover picture not found!" });
+    } else {
+      res.status(500).json({ error: error._message });
+    }
+  }
+});
+
 // DELETE USER
 router.delete("/delete", auth, async (req, res) => {
   try {
@@ -160,7 +203,7 @@ router.get("/", auth, async (req, res) => {
 });
 
 // GET ALL USER
-router.get("/allUsers", auth, async (req, res) => {
+router.get("/all-users", auth, async (req, res) => {
   try {
     const users = await User.find();
     const userList = users.map((user) => {
