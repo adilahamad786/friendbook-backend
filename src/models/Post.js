@@ -19,10 +19,21 @@ const postSchema = new mongoose.Schema(
       type: Array,
       default: [],
     },
-    comments: {
-      type: Array,
-      default: [],
-    },
+    comments: [{
+      user : {
+        type : mongoose.Schema.Types.ObjectId,
+        required : true,
+        ref : "User",
+      },
+      message : {
+        type : String,
+      },
+      time : {
+        type : Date,
+        required : true,
+        default : new Date()
+      }
+    }],
   },
   {
     timestamps: true,

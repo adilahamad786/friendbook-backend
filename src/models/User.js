@@ -41,10 +41,10 @@ const userSchema = new mongoose.Schema(
       },
     },
     profilePicture: {
-      type: Buffer,
+      type: Object,
     },
     coverPicture: {
-      type: Buffer,
+      type: Object,
     },
     followings: {
       type: Array,
@@ -60,19 +60,34 @@ const userSchema = new mongoose.Schema(
     },
     description: {
       type: String,
-      max: 50,
+      max: 30,
     },
-    city: {
+    location: {
       type: String,
-      max: 50,
+      max: 30,
     },
-    from: {
-      type: String,
-      max: 50,
+    gender : {
+      type : Number,
+      enum : [1,2]
     },
     relationship: {
       type: Number,
-      enum: [1, 2, 3],
+      enum: [1, 2],
+    },
+    linkedIn : {
+      type : String,
+    },
+    facebook : {
+      type : String,
+    },
+    twitter : {
+      type : String,
+    },
+    instagram : {
+      type : String,
+    },
+    pinterest : {
+      type : String,
     },
     tokens: [
       {

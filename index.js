@@ -21,8 +21,8 @@ app.use(express.json());
 app.use(helmet());
 app.use(morgan("common"));
 
-app.use("/api/users", userRoute);
-app.use("/api/posts", postRoute);
+app.use("/api/user", userRoute);
+app.use("/api/post", postRoute);
 
 app.get("/", (req, res) => {
   res.send("Welcome to homepage!");

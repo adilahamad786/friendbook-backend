@@ -131,4 +131,52 @@ router.get("/timeline/all", auth, async (req, res) => {
   }
 });
 
+// ADD A COMMENT
+router.put('/:id/comment', auth, async (req, res) => {
+  try {
+    const post = await Post.findById(req.params.id);
+
+    if (!post) {
+      res.status(404).send();
+    }
+
+    await post.updateOne({ $push : {
+      comments : {
+          user : req.user._id,
+          message : req.body.message
+        }
+      }
+    });
+
+    // post.comments.concat({
+    //   user : req.user._id,
+    //   message : req.body.message
+    // });
+
+    console.log(post);
+
+    await post.save();
+    res.status(201).send(post);
+  }
+  catch (error) {
+    res.status(500).send(error);
+  }
+});
+
+// GET ALL POST RELATED COMMENTS
+router.get('/:id/comments', auth, async (req, res) => {
+  try {
+    const post = await Post.findById(req.params.id);
+
+    if (!post) {
+      res.status(404).send();
+    }
+
+    res.status(200).send(post.comments);
+  }
+  catch (error) {
+    res.status(500).send(error);
+  }
+});
+
 module.exports = router;
