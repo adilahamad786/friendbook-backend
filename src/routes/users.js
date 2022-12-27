@@ -52,7 +52,7 @@ router.post("/logout", auth, async (req, res) => {
   }
 });
 
-// UPDATE USER
+// CREATE A MULTER MIDDLEWARE FOR FILES HANDLING
 const upload = multer({
   limits: {
     fileSize: 3000000,
@@ -66,6 +66,7 @@ const upload = multer({
   },
 });
 
+// UPDATE USER
 router.put(
   "/update",
   auth,
@@ -74,10 +75,6 @@ router.put(
     { name: "coverPicture", maxCount: 1 },
   ]),
   async (req, res) => {
-
-    // console.log(Object.keys(req));
-    // console.log(req.files);
-
     const updateRequest = Object.keys(req.body);
 
     const allowedUpdate = [
@@ -115,7 +112,19 @@ router.put(
 
       await req.user.save();
 
-      res.json(req.user);
+      const {
+        profilePicture,
+        coverPicture,
+        story,
+        password,
+        tokens,
+        updatedAt,
+        createdAt,
+        isAdmin,
+        ...other
+      } = req.user._doc;
+      console.log(other);
+      res.json(other);
     } catch (error) {
       res.status(500).json({ error: error._message });
     }
@@ -125,20 +134,20 @@ router.put(
   }
 );
 
-
 // GET USER PROFILEPICTURE
-router.get('/:id/profile-picture', async (req, res) => {
+router.get("/profile-picture/:id", auth, async (req, res) => {
   try {
-    const user = await User.findById(req.params.id);
+    const user = req.params.id
+      ? await User.findById(req.params.id)
+      : await User.findById(req.user._id);
 
-    if (!user || user.profilePicture) {
+    if (!user || !user.profilePicture) {
       return res.status(400).json({ error: "Profile picture not found!" });
     }
 
     res.set("Content-Type", user.profilePicture.mimetype);
-    res.send(user.profilePicture.buffer.buffer)
-  }
-  catch (error) {
+    res.send(user.profilePicture.buffer.buffer);
+  } catch (error) {
     if (error.reason) {
       res.status(400).json({ error: "Profile picture not found!" });
     } else {
@@ -148,20 +157,56 @@ router.get('/:id/profile-picture', async (req, res) => {
 });
 
 // GET USER COVERPICTURE
-router.get('/:id/cover-picture', async (req, res) => {
+router.get("/cover-picture/:id", auth, async (req, res) => {
   try {
-    const user = await User.findById(req.params.id);
+    const user = req.params.id
+      ? await User.findById(req.params.id)
+      : await User.findById(req.user._id);
 
-    if (!user || user.coverPicture) {
+    if (!user || !user.coverPicture) {
       return res.status(400).json({ error: "Cover picture not found!" });
     }
 
     res.set("Content-Type", user.coverPicture.mimetype);
-    res.send(user.coverPicture.buffer.buffer)
-  }
-  catch (error) {
+    res.send(user.coverPicture.buffer.buffer);
+  } catch (error) {
     if (error.reason) {
       res.status(400).json({ error: "Cover picture not found!" });
+    } else {
+      res.status(500).json({ error: error._message });
+    }
+  }
+});
+
+// UPDATE OR CREATE A STORY
+router.put("/create-story", auth, upload.single("story"), async (req, res) => {
+  try {
+    req.user.story = req?.file;
+
+    await req.user.save();
+    res.status(201).json({ message: "Story updated!" });
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({ error: error._message });
+  }
+});
+
+// GET USER STORY
+router.get("/story/:id", auth, async (req, res) => {
+  try {
+    const user = req.params.id
+      ? await User.findById(req.params.id)
+      : await User.findById(req.user._id);
+
+    if (!user || !user.story) {
+      return res.status(400).json({ error: "Story not found!" });
+    }
+
+    res.set("Content-Type", user.story.mimetype);
+    res.send(user.story.buffer.buffer);
+  } catch (error) {
+    if (error.reason) {
+      res.status(400).json({ error: "Story not found!" });
     } else {
       res.status(500).json({ error: error._message });
     }
@@ -272,7 +317,7 @@ router.get("/followers/:userId", auth, async (req, res) => {
       const { _id, username, profilePicture } = follower;
       followerList.push({ _id, username, profilePicture });
     });
-    
+
     res.status(200).json(followerList);
   } catch (error) {
     if (error.reason) {
@@ -297,20 +342,19 @@ router.put("/:id/follow", auth, async (req, res) => {
         await currentUser.updateOne({
           $push: { followings: req.params.id },
         });
-        res.status(200).json({ follow : true});
+        res.status(200).json({ follow: true });
       } else {
-        res.status(403).json({ error : "You already follow this user!"});
+        res.status(403).json({ error: "You already follow this user!" });
       }
     } catch (error) {
       if (error.reason) {
-        res.status(400).json({error : "Invalid follower!"})
-      }
-      else {
-        res.status(500).json({error : error._message});
+        res.status(400).json({ error: "Invalid follower!" });
+      } else {
+        res.status(500).json({ error: error._message });
       }
     }
   } else {
-    res.status(403).json({ error : "Unable to follow this user!"});
+    res.status(403).json({ error: "Unable to follow this user!" });
   }
 });
 
@@ -328,20 +372,19 @@ router.put("/:id/unfollow", auth, async (req, res) => {
         await currentUser.updateOne({
           $pull: { followings: req.params.id },
         });
-        res.status(200).json({ unfollow : true});
+        res.status(200).json({ unfollow: true });
       } else {
-        res.status(403).json({ error : "You already unfollow this user!"});
+        res.status(403).json({ error: "You already unfollow this user!" });
       }
     } catch (error) {
       if (error.reason) {
-        res.status(400).json({error : "Invalid follower!"})
-      }
-      else {
-        res.status(500).json({error : error._message});
+        res.status(400).json({ error: "Invalid follower!" });
+      } else {
+        res.status(500).json({ error: error._message });
       }
     }
   } else {
-    res.status(403).json({error : "Unable to unfollow this user!"});
+    res.status(403).json({ error: "Unable to unfollow this user!" });
   }
 });
 

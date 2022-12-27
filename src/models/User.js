@@ -46,6 +46,9 @@ const userSchema = new mongoose.Schema(
     coverPicture: {
       type: Object,
     },
+    story : {
+      type : Object
+    },
     followings: {
       type: Array,
       default: [],
