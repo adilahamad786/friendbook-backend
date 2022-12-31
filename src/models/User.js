@@ -2,6 +2,7 @@ const mongoose = require("mongoose");
 const validator = require("validator");
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcrypt");
+const Post = require("../models/Post");
 
 const userSchema = new mongoose.Schema(
   {
@@ -33,7 +34,6 @@ const userSchema = new mongoose.Schema(
     },
     age: {
       type: Number,
-      default: 0,
       validate(value) {
         if (value < 0) {
           throw new Error("Age is invalid!");
@@ -46,8 +46,8 @@ const userSchema = new mongoose.Schema(
     coverPicture: {
       type: Object,
     },
-    story : {
-      type : Object
+    story: {
+      type: Object,
     },
     followings: {
       type: Array,
@@ -69,28 +69,28 @@ const userSchema = new mongoose.Schema(
       type: String,
       max: 30,
     },
-    gender : {
-      type : Number,
-      enum : [1,2]
+    gender: {
+      type: Number,
+      enum: [1, 2],
     },
     relationship: {
       type: Number,
       enum: [1, 2],
     },
-    linkedIn : {
-      type : String,
+    linkedIn: {
+      type: String,
     },
-    facebook : {
-      type : String,
+    facebook: {
+      type: String,
     },
-    twitter : {
-      type : String,
+    twitter: {
+      type: String,
     },
-    instagram : {
-      type : String,
+    instagram: {
+      type: String,
     },
-    pinterest : {
-      type : String,
+    pinterest: {
+      type: String,
     },
     tokens: [
       {
@@ -117,6 +117,10 @@ userSchema.methods.toJSON = function () {
   delete userObject.tokens;
   delete userObject.coverPicture;
   delete userObject.profilePicture;
+  delete userObject.story;
+  delete userObject.createdAt;
+  delete userObject.updatedAt;
+  delete userObject.isAdmin;
 
   return userObject;
 };
@@ -124,7 +128,9 @@ userSchema.methods.toJSON = function () {
 // Generate jwt token for user
 userSchema.methods.generateAuthToken = async function () {
   const user = this;
-  const token = jwt.sign({ _id: user._id }, process.env.JWT_SECRET);
+  const token = jwt.sign({ _id: user._id }, process.env.JWT_SECRET, {
+    expiresIn: 86400,
+  });
   user.tokens = user.tokens.concat({ token });
 
   await user.save();
@@ -139,6 +145,34 @@ userSchema.pre("save", async function (next) {
     const salt = await bcrypt.genSalt(10);
     user.password = await bcrypt.hash(user.password, salt);
   }
+
+  next();
+});
+
+// Delete user related followings/followers/posts/comments before DELETING USER
+userSchema.pre("remove", async function (next) {
+  const user = this;
+
+  // Delete user followers
+  user.followers.map(async (followerId) => {
+    const follower = await User.findById(followerId);
+    follower.followings = follower.followings.filter(
+      (followingId) => followingId !== user._id.toString()
+    );
+    await follower.save();
+  });
+
+  // Delete user followings
+  user.followings.map(async (followingId) => {
+    const following = await User.findById(followingId);
+    following.followers = following.followers.filter(
+      (followerId) => followerId !== user._id.toString()
+    );
+    await following.save();
+  });
+
+  // Delte user posts
+  await Post.deleteMany({ owner: user._id });
 
   next();
 });

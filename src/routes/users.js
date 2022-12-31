@@ -1,7 +1,9 @@
 const router = require("express").Router();
 const User = require("../models/User");
+const Post = require("../models/Post");
+const Comment = require("../models/Comment");
 const auth = require("../middleware/auth");
-const multer = require("multer");
+const uploadFile = require("../middleware/uploadFile");
 
 // REGISTER/CREATE/SIGNUP A USER
 router.post("/register", async (req, res) => {
@@ -9,10 +11,10 @@ router.post("/register", async (req, res) => {
     // Create a user
     const user = new User(req.body);
     // Generate a jwt token
-    const token = await user.generateAuthToken();
+    await user.generateAuthToken();
     // Save user and respond
     await user.save();
-    res.status(201).json({ user, token });
+    res.status(201).json({ message: "Account created successfully!" });
   } catch (error) {
     if (error.keyPattern) {
       res.status(400).json({ error: "Email is already exist!" });
@@ -34,7 +36,7 @@ router.post("/login", async (req, res) => {
 
     res.json({ user, token });
   } catch (error) {
-    res.status(400).json({ error: error.message });
+    res.status(500).json({ error: error._message });
   }
 });
 
@@ -46,31 +48,17 @@ router.post("/logout", auth, async (req, res) => {
     });
 
     await req.user.save();
-    res.json({ logout: true });
+    res.json({ message: "Logout account succesfully!" });
   } catch (error) {
     res.status(500).json({ error: error._message });
   }
-});
-
-// CREATE A MULTER MIDDLEWARE FOR FILES HANDLING
-const upload = multer({
-  limits: {
-    fileSize: 3000000,
-  },
-  fileFilter(req, file, cb) {
-    if (!file.originalname.match(/\.(png|jpg|jpeg)$/)) {
-      cb(new Error("Please upload an image file only (png/jpg/jpeg)!"));
-    }
-
-    cb(undefined, true);
-  },
 });
 
 // UPDATE USER
 router.put(
   "/update",
   auth,
-  upload.fields([
+  uploadFile.fields([
     { name: "profilePicture", maxCount: 1 },
     { name: "coverPicture", maxCount: 1 },
   ]),
@@ -112,19 +100,7 @@ router.put(
 
       await req.user.save();
 
-      const {
-        profilePicture,
-        coverPicture,
-        story,
-        password,
-        tokens,
-        updatedAt,
-        createdAt,
-        isAdmin,
-        ...other
-      } = req.user._doc;
-      console.log(other);
-      res.json(other);
+      res.json(req.user);
     } catch (error) {
       res.status(500).json({ error: error._message });
     }
@@ -135,14 +111,12 @@ router.put(
 );
 
 // GET USER PROFILEPICTURE
-router.get("/profile-picture/:id", auth, async (req, res) => {
+router.get("/profile-picture/:userId", auth, async (req, res) => {
   try {
-    const user = req.params.id
-      ? await User.findById(req.params.id)
-      : await User.findById(req.user._id);
+    const user = await User.findById(req.params.userId);
 
     if (!user || !user.profilePicture) {
-      return res.status(400).json({ error: "Profile picture not found!" });
+      return res.status(404).json({ error: "Profile picture not found!" });
     }
 
     res.set("Content-Type", user.profilePicture.mimetype);
@@ -157,11 +131,9 @@ router.get("/profile-picture/:id", auth, async (req, res) => {
 });
 
 // GET USER COVERPICTURE
-router.get("/cover-picture/:id", auth, async (req, res) => {
+router.get("/cover-picture/:userId", auth, async (req, res) => {
   try {
-    const user = req.params.id
-      ? await User.findById(req.params.id)
-      : await User.findById(req.user._id);
+    const user = await User.findById(req.params.userId);
 
     if (!user || !user.coverPicture) {
       return res.status(400).json({ error: "Cover picture not found!" });
@@ -178,28 +150,33 @@ router.get("/cover-picture/:id", auth, async (req, res) => {
   }
 });
 
-// UPDATE OR CREATE A STORY
-router.put("/create-story", auth, upload.single("story"), async (req, res) => {
-  try {
-    req.user.story = req?.file;
+// CREATE OR UPDATE OR DELETE A STORY
+router.put(
+  "/create-story",
+  auth,
+  uploadFile.single("story"),
+  async (req, res) => {
+    try {
+      req.user.story = req?.file;
 
-    await req.user.save();
-    res.status(201).json({ message: "Story updated!" });
-  } catch (error) {
-    console.log(error);
-    res.status(500).json({ error: error._message });
+      await req.user.save();
+      res.status(201).json({ message: "Story updated!" });
+    } catch (error) {
+      res.status(500).json({ error: error._message });
+    }
+  },
+  (error, req, res, next) => {
+    res.status(400).json({ error: error.message });
   }
-});
+);
 
 // GET USER STORY
-router.get("/story/:id", auth, async (req, res) => {
+router.get("/story/:userId", auth, async (req, res) => {
   try {
-    const user = req.params.id
-      ? await User.findById(req.params.id)
-      : await User.findById(req.user._id);
+    const user = await User.findById(req.params.userId);
 
     if (!user || !user.story) {
-      return res.status(400).json({ error: "Story not found!" });
+      return res.status(404).json({ error: "Story not found!" });
     }
 
     res.set("Content-Type", user.story.mimetype);
@@ -210,16 +187,6 @@ router.get("/story/:id", auth, async (req, res) => {
     } else {
       res.status(500).json({ error: error._message });
     }
-  }
-});
-
-// DELETE USER
-router.delete("/delete", auth, async (req, res) => {
-  try {
-    await req.user.remove();
-    res.json(req.user);
-  } catch (error) {
-    res.status(500).json({ error: error._message });
   }
 });
 
@@ -236,8 +203,7 @@ router.get("/", auth, async (req, res) => {
       return res.status(404).json({ error: "User not found!" });
     }
 
-    const { password, tokens, updatedAt, ...other } = user._doc;
-    res.status(200).json(other);
+    res.status(200).json(user);
   } catch (error) {
     if (error.reason) {
       res.status(400).json({ error: "User not found!" });
@@ -252,10 +218,10 @@ router.get("/all-users", auth, async (req, res) => {
   try {
     const users = await User.find();
     const userList = users.map((user) => {
-      return { username: user.username, profilePicture: user.profilePicture };
+      return { _id: user._id, username: user.username };
     });
     res.status(200).json(userList);
-  } catch (err) {
+  } catch (error) {
     res.status(500).json({ error: error._message });
   }
 });
@@ -263,9 +229,7 @@ router.get("/all-users", auth, async (req, res) => {
 // GET ALL FOLLOWINGS
 router.get("/followings/:userId", auth, async (req, res) => {
   try {
-    const user = req.params.userId
-      ? await User.findById(req.params.userId)
-      : await User.findById(req.user._id);
+    const user = await User.findById(req.params.userId);
 
     if (!user) {
       return res.status(400).json({ error: "Invalid user followings!" });
@@ -280,8 +244,8 @@ router.get("/followings/:userId", auth, async (req, res) => {
     let followingList = [];
 
     followings.map((following) => {
-      const { _id, username, profilePicture } = following;
-      followingList.push({ _id, username, profilePicture });
+      const { _id, username } = following;
+      followingList.push({ _id, username });
     });
 
     res.status(200).json(followingList);
@@ -297,9 +261,7 @@ router.get("/followings/:userId", auth, async (req, res) => {
 // GET ALL FOLLOWERS
 router.get("/followers/:userId", auth, async (req, res) => {
   try {
-    const user = req.params.userId
-      ? await User.findById(req.params.userId)
-      : await User.findById(req.user._id);
+    const user = await User.findById(req.params.userId);
 
     if (!user) {
       return res.status(400).json({ error: "Invalid user followers!" });
@@ -314,8 +276,8 @@ router.get("/followers/:userId", auth, async (req, res) => {
     let followerList = [];
 
     followers.map((follower) => {
-      const { _id, username, profilePicture } = follower;
-      followerList.push({ _id, username, profilePicture });
+      const { _id, username } = follower;
+      followerList.push({ _id, username });
     });
 
     res.status(200).json(followerList);
@@ -328,63 +290,93 @@ router.get("/followers/:userId", auth, async (req, res) => {
   }
 });
 
-// FOLLOW A USER
-router.put("/:id/follow", auth, async (req, res) => {
-  if (req.params.id !== req.user._id) {
+// FOLLOW/UNFOLLOW A USER
+router.put("/follow-unfollow/:userId", auth, async (req, res) => {
+  if (req.params.userId !== req.user._id) {
     try {
-      const user = await User.findById(req.params.id);
+      const user = await User.findById(req.params.userId);
       const currentUser = await User.findById(req.user._id);
 
-      if (!currentUser.followings.includes(req.params.id)) {
+      if (currentUser.followings.includes(req.params.userId)) {
         await user.updateOne({
-          $push: { followers: req.user._id },
+          $pull: { followers: req.user._id.toString() },
         });
         await currentUser.updateOne({
-          $push: { followings: req.params.id },
+          $pull: { followings: req.params.userId },
         });
-        res.status(200).json({ follow: true });
+
+        return res.json({ message: "User unfollowed!" });
       } else {
-        res.status(403).json({ error: "You already follow this user!" });
+        await user.updateOne({
+          $push: { followers: req.user._id.toString() },
+        });
+        await currentUser.updateOne({
+          $push: { followings: req.params.userId },
+        });
+
+        return res.json({ message: "User followed!" });
       }
     } catch (error) {
       if (error.reason) {
-        res.status(400).json({ error: "Invalid follower!" });
+        res.status(400).json({ error: "User not found!" });
       } else {
         res.status(500).json({ error: error._message });
       }
     }
   } else {
-    res.status(403).json({ error: "Unable to follow this user!" });
+    res.status(403).json({ error: "You can't follow yourself!" });
   }
 });
 
-// UNFOLLOW A USER
-router.put("/:id/unfollow", auth, async (req, res) => {
-  if (req.params.id !== req.user._id) {
-    try {
-      const user = await User.findById(req.params.id);
-      const currentUser = await User.findById(req.user._id);
+// DELETE USER
+router.delete("/delete", auth, async (req, res) => {
+  try {
+    // Delete all user post
+    await Post.deleteMany({ owner: req.user._id });
 
-      if (currentUser.followings.includes(req.params.id)) {
-        await user.updateOne({
-          $pull: { followers: req.user._id },
-        });
-        await currentUser.updateOne({
-          $pull: { followings: req.params.id },
-        });
-        res.status(200).json({ unfollow: true });
-      } else {
-        res.status(403).json({ error: "You already unfollow this user!" });
-      }
-    } catch (error) {
-      if (error.reason) {
-        res.status(400).json({ error: "Invalid follower!" });
-      } else {
-        res.status(500).json({ error: error._message });
-      }
-    }
-  } else {
-    res.status(403).json({ error: "Unable to unfollow this user!" });
+    // Getting all user comments
+    const comments = await Comment.find({ owner: req.user._id });
+
+    // Remove user comments from posts
+    comments.map(async (comment) => {
+      const post = await Post.findById(comment.post);
+      await post.updateOne({
+        $pull: { comments: comment._id.toString() },
+      });
+    });
+
+    // Getting all user likes
+    const likes = await Like.find({ owner: req.user._id });
+
+    // Remove user likes from posts
+    likes.map(async (like) => {
+      const post = await Post.findById(like.post);
+      await post.updateOne({
+        $pull: { likes: like._id.toString() },
+      });
+    });
+
+    // Remove user followings
+    req.user.followings.map(async (followingId) => {
+      const followingUser = await User.findById(followingId);
+      await followingUser.updateOne({
+        $pull: { followers: req.user._id.toString() },
+      });
+    });
+
+    // Remove user followers
+    req.user.followers.map(async (followerId) => {
+      const followerUser = await User.findById(followerId);
+      await followerUser.updateOne({
+        $pull: { followings: req.user._id.toString() },
+      });
+    });
+
+    await req.user.remove();
+    res.json({ message: "Account deleted successfully!" });
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({ error: error._message });
   }
 });
 

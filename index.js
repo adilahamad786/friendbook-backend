@@ -6,6 +6,8 @@ const morgan = require("morgan");
 const helmet = require("helmet");
 const userRoute = require("./src/routes/users");
 const postRoute = require('./src/routes/posts');
+const commentRoute = require('./src/routes/comment');
+const likeRoute = require('./src/routes/like');
 
 dotenv.config();
 
@@ -23,6 +25,8 @@ app.use(morgan("common"));
 
 app.use("/api/user", userRoute);
 app.use("/api/post", postRoute);
+app.use("/api/comment", commentRoute);
+app.use("/api/like", likeRoute);
 
 app.get("/", (req, res) => {
   res.send("Welcome to homepage!");
