@@ -4,13 +4,13 @@ const Comment = require("../models/Comment");
 const Post = require("../models/Post");
 
 // CREATE/ADD A COMMENT
-router.post("/add/:id", auth, async (req, res) => {
+router.post("/add/:postId", auth, async (req, res) => {
   try {
     if (!req.body.message) {
       return res.status(404).json({ error: "Please provide comment message!" });
     }
 
-    const post = await Post.findById(req.params.id);
+    const post = await Post.findById(req.params.postId);
 
     if (!post) {
       return res
@@ -20,7 +20,7 @@ router.post("/add/:id", auth, async (req, res) => {
 
     const addComment = new Comment({
       owner: req.user._id,
-      post: req.params.id,
+      post: req.params.postId,
       message: req.body.message,
     });
 
@@ -42,11 +42,38 @@ router.post("/add/:id", auth, async (req, res) => {
   }
 });
 
+router.patch('/update/:commentId', auth, async (req, res) => {
+  try {
+    const comment = await Comment.findById(req.params.commentId);
+
+    if (!comment) {
+      return res.status(404).json({error : "Comment not found!"});
+    }
+
+    if (!req.body?.message) {
+      return res.status(400).json({ error : "Invalid update!" });
+    }
+
+    comment.message = req.body.message;
+    await comment.save();
+
+    res.json(comment);
+  }
+  catch (error) {
+    if (error.reason) {
+      return res.status(400).json({error : "Comment not found!"});
+    }
+    else {
+      res.status(500).json({ error : error._message });
+    }
+  }
+});
+
 // DELETE A COMMENT
-router.delete("/remove/:id", auth, async (req, res) => {
+router.delete("/remove/:postId", auth, async (req, res) => {
   try {
     const deletedComment = await Comment.findOneAndDelete({
-      _id: req.params.id,
+      _id: req.params.postId,
       owner: req.user._id,
     });
 
@@ -72,9 +99,9 @@ router.delete("/remove/:id", auth, async (req, res) => {
 });
 
 // GET ALL POST RELATED COMMENTS
-router.get("/post/:id", auth, async (req, res) => {
+router.get("/post/:postId", auth, async (req, res) => {
   try {
-    const comments = await Comment.find({ post: req.params.id });
+    const comments = await Comment.find({ post: req.params.postId });
     res.json(comments);
   } catch (error) {
     if (error.reason) {

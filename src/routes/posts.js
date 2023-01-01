@@ -112,30 +112,15 @@ router.delete("/delete/:postId", auth, async (req, res) => {
   }
 });
 
-// GET A POST
-router.get("/:postId", auth, async (req, res) => {
-  try {
-    const post = await Post.findById(req.params.postId);
-
-    if (!post) {
-      return res.status(404).json({ error: "Post not exist!" });
-    }
-
-    res.status(200).json(post);
-  } catch (error) {
-    if (error.reason) {
-      res.status(400).json({ error: "Post not exist!" });
-    } else {
-      res.status(500).json({ error: error._message });
-    }
-  }
-});
-
 // GET ALL/TIMELINE POST
 router.get("/timeline", auth, async (req, res) => {
+  console.log("Start");
   try {
+    console.log("1")
     // Get all my post
     const userPosts = await Post.find({ owner: req.user._id });
+
+    console.log("2")
 
     // Get all followings post
     const followingPosts = await Promise.all(
@@ -144,6 +129,8 @@ router.get("/timeline", auth, async (req, res) => {
       })
     );
 
+    console.log("3")
+
     // Get all followers post
     const followerPosts = await Promise.all(
       req.user.followers.map((followerId) => {
@@ -151,13 +138,17 @@ router.get("/timeline", auth, async (req, res) => {
       })
     );
 
+    console.log("4")
+
     const allTimelinePosts = userPosts
       .concat(...followingPosts)
       .concat(...followerPosts);
 
     res.status(200).json(allTimelinePosts);
   } catch (error) {
+    console.log(error);
     if (error.reason) {
+      console.log(error)
       res.status(400).json({ error: "Post not exist!" });
     } else {
       res.status(500).json({ error: error._message });

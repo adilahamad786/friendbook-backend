@@ -10,8 +10,9 @@ const userSchema = new mongoose.Schema(
       type: String,
       required: true,
       trim: true,
-      min: 3,
-      max: 20,
+      lowercase : true,
+      minlength: 3,
+      maxlength: 20,
     },
     email: {
       type: String,
@@ -19,7 +20,6 @@ const userSchema = new mongoose.Schema(
       unique: true,
       lowercase: true,
       trim: true,
-      max: 50,
       validate(email) {
         if (!validator.isEmail(email)) {
           throw new Error("Email is not valid!");
@@ -30,7 +30,7 @@ const userSchema = new mongoose.Schema(
       type: String,
       required: true,
       trim: true,
-      min: 6,
+      minlength: 6,
     },
     age: {
       type: Number,
@@ -63,11 +63,12 @@ const userSchema = new mongoose.Schema(
     },
     description: {
       type: String,
-      max: 30,
+      maxlength: 30,
     },
     location: {
       type: String,
-      max: 30,
+      minlength: 2,
+      maxlength: 30
     },
     gender: {
       type: Number,
@@ -121,6 +122,7 @@ userSchema.methods.toJSON = function () {
   delete userObject.createdAt;
   delete userObject.updatedAt;
   delete userObject.isAdmin;
+  delete userObject.__v
 
   return userObject;
 };

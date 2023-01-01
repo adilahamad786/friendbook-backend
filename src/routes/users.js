@@ -2,6 +2,7 @@ const router = require("express").Router();
 const User = require("../models/User");
 const Post = require("../models/Post");
 const Comment = require("../models/Comment");
+const Like = require('../models/Like');
 const auth = require("../middleware/auth");
 const uploadFile = require("../middleware/uploadFile");
 
@@ -55,7 +56,7 @@ router.post("/logout", auth, async (req, res) => {
 });
 
 // UPDATE USER
-router.put(
+router.patch(
   "/update",
   auth,
   uploadFile.fields([
@@ -111,7 +112,7 @@ router.put(
 );
 
 // GET USER PROFILEPICTURE
-router.get("/profile-picture/:userId", auth, async (req, res) => {
+router.get("/profile-picture/:userId", async (req, res) => {
   try {
     const user = await User.findById(req.params.userId);
 
@@ -131,7 +132,7 @@ router.get("/profile-picture/:userId", auth, async (req, res) => {
 });
 
 // GET USER COVERPICTURE
-router.get("/cover-picture/:userId", auth, async (req, res) => {
+router.get("/cover-picture/:userId", async (req, res) => {
   try {
     const user = await User.findById(req.params.userId);
 
@@ -190,6 +191,25 @@ router.get("/story/:userId", auth, async (req, res) => {
   }
 });
 
+// GET USER ITSELF
+router.get("/me", auth, async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id);
+
+    if (!user) {
+      return res.status(404).json({ error: "User not found!" });
+    }
+
+    res.status(200).json(user);
+  } catch (error) {
+    if (error.reason) {
+      res.status(400).json({ error: "User not found!" });
+    } else {
+      res.status(500).json({ error: error._message });
+    }
+  }
+});
+
 // GET A USER
 router.get("/", auth, async (req, res) => {
   const userId = req.query.userId;
@@ -213,7 +233,7 @@ router.get("/", auth, async (req, res) => {
   }
 });
 
-// GET ALL USER
+// GET ALL USERS
 router.get("/all-users", auth, async (req, res) => {
   try {
     const users = await User.find();
@@ -331,9 +351,6 @@ router.put("/follow-unfollow/:userId", auth, async (req, res) => {
 // DELETE USER
 router.delete("/delete", auth, async (req, res) => {
   try {
-    // Delete all user post
-    await Post.deleteMany({ owner: req.user._id });
-
     // Getting all user comments
     const comments = await Comment.find({ owner: req.user._id });
 
@@ -345,6 +362,9 @@ router.delete("/delete", auth, async (req, res) => {
       });
     });
 
+    // Remove actual user comments from comment model
+    await Comment.deleteMany({ owner : req.user._id });
+
     // Getting all user likes
     const likes = await Like.find({ owner: req.user._id });
 
@@ -355,6 +375,9 @@ router.delete("/delete", auth, async (req, res) => {
         $pull: { likes: like._id.toString() },
       });
     });
+
+    // Delete all user post
+    await Post.deleteMany({ owner: req.user._id });
 
     // Remove user followings
     req.user.followings.map(async (followingId) => {
