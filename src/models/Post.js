@@ -7,12 +7,27 @@ const postSchema = new mongoose.Schema(
       required: true,
       trim: true,
     },
-    description: {
+    username: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    hasProfilePicture: {
+      type: Boolean,
+      required: true,
+      default: false
+    },
+    message: {
       type: String,
       maxlength: 1000,
     },
     image: {
       type: Object,
+    },
+    hasImage: {
+      type: Boolean,
+      required: true,
+      default: false
     },
     likes: {
       type: Array,
@@ -35,9 +50,8 @@ postSchema.methods.toJSON = function () {
   // we are not use destructure to filter because the behaviour is different
   const userObject = user.toObject();
 
-  delete userObject.image;
+  // delete userObject.image;
   delete userObject.createdAt;
-  delete userObject.updatedAt;
   delete userObject.__v;
 
   return userObject;

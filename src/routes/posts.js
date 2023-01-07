@@ -10,19 +10,26 @@ router.post(
   auth,
   uploadFile.single("image"),
   async (req, res) => {
-    if (!req.body.description && !req.file) {
+    if (!req.body.message && !req.file) {
       return res
         .status(400)
         .json({
-          error: "For creating a post required a description or an image!",
+          error: "For creating a post required a message or an image!",
         });
     }
 
+    let hasImage = false;
+    if (req.file)
+      hasImage = true;
+
     try {
       const newPost = new Post({
-        description: req.body.description,
+        message: req.body.message,
         image: req.file,
         owner: req.user._id,
+        username: req.user.username,
+        hasProfilePicture: req.user.hasProfilePicture,
+        hasImage
       });
       const savePost = await newPost.save();
       res.status(201).json(savePost);
@@ -41,15 +48,15 @@ router.patch(
   auth,
   uploadFile.single("image"),
   async (req, res) => {
-    if (!req.body.description && !req.file) {
-      return res
-        .status(400)
-        .json({
-          error: "For updating a post required a description or an image!",
-        });
-    }
-
     try {
+      if (!req.body.message && !req.file) {
+        return res
+          .status(400)
+          .json({
+            error: "For updating a post required a description or an image!",
+          });
+      }
+
       const post = await Post.findOne({
         _id: req.params.postId,
         owner: req.user._id,
@@ -59,22 +66,13 @@ router.patch(
         return res.status(404).json({ error: "Post not found!" });
       }
 
-      const updates = Object.keys(req.body);
-      const allowedUpdate = ["description"];
-
-      const isValidUpdate = updates.every((update) =>
-        allowedUpdate.includes(update)
-      );
-
-      if (!isValidUpdate) {
-        return res.status(400).send({ error: "Invalid update" });
+      if (req.body.message) {
+        post.message = req.body.message;
       }
 
       if (req.file) {
         post.image = req.file;
       }
-
-      updates.forEach((update) => (post[update] = req.body[update]));
 
       await post.save();
       res.json(post);
@@ -116,11 +114,8 @@ router.delete("/delete/:postId", auth, async (req, res) => {
 router.get("/timeline", auth, async (req, res) => {
   console.log("Start");
   try {
-    console.log("1")
     // Get all my post
     const userPosts = await Post.find({ owner: req.user._id });
-
-    console.log("2")
 
     // Get all followings post
     const followingPosts = await Promise.all(
@@ -129,16 +124,12 @@ router.get("/timeline", auth, async (req, res) => {
       })
     );
 
-    console.log("3")
-
     // Get all followers post
     const followerPosts = await Promise.all(
       req.user.followers.map((followerId) => {
         return Post.find({ owner: followerId });
       })
     );
-
-    console.log("4")
 
     const allTimelinePosts = userPosts
       .concat(...followingPosts)
@@ -150,6 +141,26 @@ router.get("/timeline", auth, async (req, res) => {
     if (error.reason) {
       console.log(error)
       res.status(400).json({ error: "Post not exist!" });
+    } else {
+      res.status(500).json({ error: error._message });
+    }
+  }
+});
+
+// GET POST IMAGE
+router.get("/:postId", async (req, res) => {
+  try {
+    const post = await Post.findById(req.params.postId);
+
+    if (!post || !post.image) {
+      return res.status(404).json({ error: "Post image not found!" });
+    }
+
+    res.set("Content-Type", post.image.mimetype);
+    res.send(post.image.buffer.buffer);
+  } catch (error) {
+    if (error.reason) {
+      res.status(400).json({ error: "Post image not found!" });
     } else {
       res.status(500).json({ error: error._message });
     }

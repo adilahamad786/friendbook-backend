@@ -43,11 +43,23 @@ const userSchema = new mongoose.Schema(
     profilePicture: {
       type: Object,
     },
+    hasProfilePicture: {
+      type: Boolean,
+      default : false
+    },
     coverPicture: {
       type: Object,
     },
+    hasCoverPicture: {
+      type: Boolean,
+      default : false
+    },
     story: {
       type: Object,
+    },
+    hasStory: {
+      type: Boolean,
+      default : false
     },
     followings: {
       type: Array,

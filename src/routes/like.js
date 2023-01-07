@@ -22,17 +22,21 @@ router.put("/:postId", auth, async (req, res) => {
         owner: req.user._id,
         post: req.params.postId,
       });
-      await post.updateOne({ $pull: { likes: hasLiked._id.toString() } });
-      res.status(200).json({ message: "Post has been disliked!" });
+      // await post.updateOne({ $pull: { likes: hasLiked._id.toString() } });
+      post.likes.pull(hasLiked._id.toString());
+      await post.save()
+      res.status(200).json({ like: false, likes: post.likes });
     } else {
       const like = await Like({
         owner: req.user._id,
         post: req.params.postId,
       });
 
-      await post.updateOne({ $push: { likes: like._id.toString() } });
+      // await post.updateOne({ $push: { likes: like._id.toString() } });
+      post.likes.push(like._id.toString());
+      await post.save();
       await like.save();
-      res.status(200).json({ message: "Post has been liked!" });
+      res.status(200).json({ like: true, likes : post.likes });
     }
   } catch (error) {
     console.log(error);

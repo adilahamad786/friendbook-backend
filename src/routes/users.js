@@ -5,6 +5,7 @@ const Comment = require("../models/Comment");
 const Like = require('../models/Like');
 const auth = require("../middleware/auth");
 const uploadFile = require("../middleware/uploadFile");
+const { set } = require("mongoose");
 
 // REGISTER/CREATE/SIGNUP A USER
 router.post("/register", async (req, res) => {
@@ -64,39 +65,40 @@ router.patch(
     { name: "coverPicture", maxCount: 1 },
   ]),
   async (req, res) => {
-    const updateRequest = Object.keys(req.body);
-
-    const allowedUpdate = [
-      "username",
-      "description",
-      "age",
-      "gender",
-      "relationship",
-      "location",
-      "facebook",
-      "linkedIn",
-      "twitter",
-      "instagram",
-      "pinterest",
-    ];
-
-    const isValidUpdate = updateRequest.every((update) =>
-      allowedUpdate.includes(update)
-    );
-
-    if (!isValidUpdate) {
-      return res.status(400).json({ error: "Invalid update!" });
-    }
-
     try {
+      const updateRequest = Object.keys(req.body);
+      const allowedUpdate = [
+        "username",
+        "description",
+        "age",
+        "gender",
+        "relationship",
+        "location",
+        "facebook",
+        "linkedIn",
+        "twitter",
+        "instagram",
+        "pinterest",
+      ];
+
+      const isValidUpdate = updateRequest.every((update) =>
+        allowedUpdate.includes(update)
+      );
+
+      if (!isValidUpdate) {
+        return res.status(400).json({ error: "Invalid update!" });
+      }
+
       updateRequest.forEach((update) => (req.user[update] = req.body[update]));
 
       if (req.files?.profilePicture) {
         req.user.profilePicture = req.files.profilePicture[0];
+        req.user.hasProfilePicture = true;
       }
 
       if (req.files?.coverPicture) {
         req.user.coverPicture = req.files.coverPicture[0];
+        req.user.hasCoverPicture = true;
       }
 
       await req.user.save();
@@ -158,11 +160,19 @@ router.put(
   uploadFile.single("story"),
   async (req, res) => {
     try {
-      req.user.story = req?.file;
+      req.user.story = req.file;
+
+      if (req.user.story) {
+        req.user.hasStory = true;
+      }
+      else {
+        req.user.hasStory = false;
+      }
 
       await req.user.save();
       res.status(201).json({ message: "Story updated!" });
     } catch (error) {
+      console.log(error);
       res.status(500).json({ error: error._message });
     }
   },
@@ -171,12 +181,31 @@ router.put(
   }
 );
 
-// GET USER STORY
-router.get("/story/:userId", auth, async (req, res) => {
+// GET ALL TIMELINE STORIES
+router.get('/story/timeline', auth, async (req, res) => {
+  try {
+    let friendIds = [... new Set([...req.user.followings, ...req.user.followers])];
+    let stories = [];
+
+    for (friendId of friendIds) {
+      const friend = await User.findById(friendId);
+      friend.hasStory && stories.push({ _id : friend._id, username : friend.username, hasStory: friend.hasStory });
+    }
+
+    res.json(stories)
+  }
+  catch (error) {
+    console.log(error)
+    res.status(500).json({ error : error._message });
+  }
+});
+
+// GET USER STORY IMAGE
+router.get("/story/:userId", async (req, res) => {
   try {
     const user = await User.findById(req.params.userId);
 
-    if (!user || !user.story) {
+    if (!user.hasStory) {
       return res.status(404).json({ error: "Story not found!" });
     }
 
@@ -312,7 +341,7 @@ router.get("/followers/:userId", auth, async (req, res) => {
 
 // FOLLOW/UNFOLLOW A USER
 router.put("/follow-unfollow/:userId", auth, async (req, res) => {
-  if (req.params.userId !== req.user._id) {
+  if (req.params.userId !== req.user._id.toString()) {
     try {
       const user = await User.findById(req.params.userId);
       const currentUser = await User.findById(req.user._id);
@@ -325,7 +354,7 @@ router.put("/follow-unfollow/:userId", auth, async (req, res) => {
           $pull: { followings: req.params.userId },
         });
 
-        return res.json({ message: "User unfollowed!" });
+        return res.json({ message: "User unfollowed!", status : false });
       } else {
         await user.updateOne({
           $push: { followers: req.user._id.toString() },
@@ -334,7 +363,7 @@ router.put("/follow-unfollow/:userId", auth, async (req, res) => {
           $push: { followings: req.params.userId },
         });
 
-        return res.json({ message: "User followed!" });
+        return res.json({ message: "User followed!", status : true });
       }
     } catch (error) {
       if (error.reason) {
@@ -400,6 +429,45 @@ router.delete("/delete", auth, async (req, res) => {
   } catch (error) {
     console.log(error);
     res.status(500).json({ error: error._message });
+  }
+});
+
+// Suggestion for User
+router.get("/suggestion", auth, async (req, res) => {
+  try {
+    let suggestionList = [];
+
+    // getting all followers and followings Id's of user followers
+    for (let followerId of req.user.followers) {
+      const follower = await User.findById(followerId);
+      suggestionList = [...suggestionList, ...follower.followers, ...follower.followings];
+    }
+
+    // getting all followers and followings Id's of user followings
+    for (let followingId of req.user.followings) {
+      const following = await User.findById(followingId);
+      suggestionList = [...suggestionList, ...following.followers, ...following.followings];
+    }
+
+    // remove duplicate Id from suggestionList
+    suggestionList = [...new Set(suggestionList)];
+
+    // remove userId, user followersId and followingsId from suggestionList
+    suggestionList = suggestionList.filter( suggest => {
+      return !(req.user.followers.includes(suggest) || req.user.followings.includes(suggest) || req.user._id.toString() === suggest);
+    });
+
+    suggestUsers = [];
+
+    for (let suggest of suggestionList) {
+      const user = await User.findById(suggest);
+      suggestUsers.push({ _id : user._id, username : user.username, hasProfilePicture : user.hasProfilePicture });
+    }
+
+    res.json(suggestUsers);
+  }
+  catch (error) {
+    res.status(500).json({ error : error._message });
   }
 });
 
