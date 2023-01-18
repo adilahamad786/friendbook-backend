@@ -110,36 +110,31 @@ router.delete("/delete/:postId", auth, async (req, res) => {
   }
 });
 
-// GET ALL/TIMELINE POST
+// GET USER ALL POSTS
+router.get('/my-posts/:userId', auth, async (req, res) => {
+  try {
+    const userPosts = await Post.find({ owner : req.params.userId });
+    res.json(userPosts);
+  }
+  catch (error) {
+    if (error.reason) {
+      res
+        .status(400)
+        .json({ error: "You are trying to delete a invalid post!" });
+    } else {
+      res.status(500).json({ error: error._message });
+    }
+  }
+});
+
+// GET ALL/TIMELINE POSTS
 router.get("/timeline", auth, async (req, res) => {
   console.log("Start");
   try {
-    // Get all my post
-    const userPosts = await Post.find({ owner: req.user._id });
-
-    // Get all followings post
-    const followingPosts = await Promise.all(
-      req.user.followings.map((followingId) => {
-        return Post.find({ owner: followingId });
-      })
-    );
-
-    // Get all followers post
-    const followerPosts = await Promise.all(
-      req.user.followers.map((followerId) => {
-        return Post.find({ owner: followerId });
-      })
-    );
-
-    const allTimelinePosts = userPosts
-      .concat(...followingPosts)
-      .concat(...followerPosts);
-
-    res.status(200).json(allTimelinePosts);
+    const posts = await Post.find();
+    res.status(200).json(posts);
   } catch (error) {
-    console.log(error);
     if (error.reason) {
-      console.log(error)
       res.status(400).json({ error: "Post not exist!" });
     } else {
       res.status(500).json({ error: error._message });

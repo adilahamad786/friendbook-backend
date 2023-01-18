@@ -163,34 +163,6 @@ userSchema.pre("save", async function (next) {
   next();
 });
 
-// Delete user related followings/followers/posts/comments before DELETING USER
-userSchema.pre("remove", async function (next) {
-  const user = this;
-
-  // Delete user followers
-  user.followers.map(async (followerId) => {
-    const follower = await User.findById(followerId);
-    follower.followings = follower.followings.filter(
-      (followingId) => followingId !== user._id.toString()
-    );
-    await follower.save();
-  });
-
-  // Delete user followings
-  user.followings.map(async (followingId) => {
-    const following = await User.findById(followingId);
-    following.followers = following.followers.filter(
-      (followerId) => followerId !== user._id.toString()
-    );
-    await following.save();
-  });
-
-  // Delte user posts
-  await Post.deleteMany({ owner: user._id });
-
-  next();
-});
-
 // Verify user credentials
 userSchema.statics.findByCredentials = async (email, password) => {
   const user = await User.findOne({ email });

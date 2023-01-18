@@ -5,7 +5,6 @@ const Comment = require("../models/Comment");
 const Like = require('../models/Like');
 const auth = require("../middleware/auth");
 const uploadFile = require("../middleware/uploadFile");
-const { set } = require("mongoose");
 
 // REGISTER/CREATE/SIGNUP A USER
 router.post("/register", async (req, res) => {
@@ -33,7 +32,6 @@ router.post("/login", async (req, res) => {
       req.body.email,
       req.body.password
     );
-
     const token = await user.generateAuthToken();
 
     res.json({ user, token });
@@ -43,7 +41,7 @@ router.post("/login", async (req, res) => {
 });
 
 // LOGOUT
-router.post("/logout", auth, async (req, res) => {
+router.get("/logout", auth, async (req, res) => {
   try {
     req.user.tokens = req.user.tokens.filter((tokenObject) => {
       return tokenObject.token !== req.token;
@@ -172,7 +170,6 @@ router.put(
       await req.user.save();
       res.status(201).json({ message: "Story updated!" });
     } catch (error) {
-      console.log(error);
       res.status(500).json({ error: error._message });
     }
   },
@@ -195,7 +192,6 @@ router.get('/story/timeline', auth, async (req, res) => {
     res.json(stories)
   }
   catch (error) {
-    console.log(error)
     res.status(500).json({ error : error._message });
   }
 });
@@ -267,7 +263,7 @@ router.get("/all-users", auth, async (req, res) => {
   try {
     const users = await User.find();
     const userList = users.map((user) => {
-      return { _id: user._id, username: user.username };
+      return { _id: user._id, username: user.username, hasProfilePicture : user.hasProfilePicture };
     });
     res.status(200).json(userList);
   } catch (error) {
@@ -293,8 +289,8 @@ router.get("/followings/:userId", auth, async (req, res) => {
     let followingList = [];
 
     followings.map((following) => {
-      const { _id, username } = following;
-      followingList.push({ _id, username });
+      const { _id, username, hasProfilePicture } = following;
+      followingList.push({ _id, username, hasProfilePicture, followMe : false });
     });
 
     res.status(200).json(followingList);
@@ -325,8 +321,8 @@ router.get("/followers/:userId", auth, async (req, res) => {
     let followerList = [];
 
     followers.map((follower) => {
-      const { _id, username } = follower;
-      followerList.push({ _id, username });
+      const { _id, username, hasProfilePicture } = follower;
+      followerList.push({ _id, username, hasProfilePicture, followMe : true });
     });
 
     res.status(200).json(followerList);
@@ -339,12 +335,68 @@ router.get("/followers/:userId", auth, async (req, res) => {
   }
 });
 
+// GET FOLLOW STATUS
+router.get("/follow-status/:userId", auth, async (req, res) => {
+  try {
+    const hasFollowed = req.user.followings.includes(req.params.userId);
+    res.json({ hasFollowed });
+  }
+  catch (error) {
+    res.status(500).json({ error: error._message });
+  }
+});
+
+// GET ALL FRIENDS
+router.get("/friends/:userId", auth, async (req, res) => {
+  try {
+    const user = await User.findById(req.params.userId);
+
+    if (!user) {
+      return res.status(400).json({ error: "Invalid user followings!" });
+    }
+
+    const followings = await Promise.all(
+      user.followings.map((followingId) => {
+        return User.findById(followingId);
+      })
+    );
+
+    let followingList = [];
+
+    followings.map((following) => {
+      const { _id, username, hasProfilePicture } = following;
+      followingList.push({ _id, username, hasProfilePicture, followMe : false });
+    });
+
+    const followers = await Promise.all(
+      user.followers.map((followerId) => {
+        return User.findById(followerId);
+      })
+    );
+
+    let followerList = [];
+
+    followers.map((follower) => {
+      const { _id, username, hasProfilePicture } = follower;
+      followerList.push({ _id, username, hasProfilePicture, followMe : true });
+    });
+
+    res.status(200).json([...followerList, ...followingList]);
+  } catch (error) {
+    if (error.reason) {
+      res.status(400).json({ error: "Invalid user followings!" });
+    } else {
+      res.status(500).json({ error: error._message });
+    }
+  }
+});
+
 // FOLLOW/UNFOLLOW A USER
 router.put("/follow-unfollow/:userId", auth, async (req, res) => {
   if (req.params.userId !== req.user._id.toString()) {
     try {
       const user = await User.findById(req.params.userId);
-      const currentUser = await User.findById(req.user._id);
+      const currentUser = req.user;
 
       if (currentUser.followings.includes(req.params.userId)) {
         await user.updateOne({
@@ -354,8 +406,9 @@ router.put("/follow-unfollow/:userId", auth, async (req, res) => {
           $pull: { followings: req.params.userId },
         });
 
-        return res.json({ message: "User unfollowed!", status : false });
-      } else {
+        return res.json({ hasFollow : false });
+      }
+      else {
         await user.updateOne({
           $push: { followers: req.user._id.toString() },
         });
@@ -363,7 +416,7 @@ router.put("/follow-unfollow/:userId", auth, async (req, res) => {
           $push: { followings: req.params.userId },
         });
 
-        return res.json({ message: "User followed!", status : true });
+        return res.json({ hasFollow : true });
       }
     } catch (error) {
       if (error.reason) {
@@ -374,6 +427,35 @@ router.put("/follow-unfollow/:userId", auth, async (req, res) => {
     }
   } else {
     res.status(403).json({ error: "You can't follow yourself!" });
+  }
+});
+
+// REMOVE USER
+router.put("/remove/:userId", auth, async (req, res) => {
+  try {
+    const currentUser = req.user;
+    const user = await User.findById(req.params.userId);
+
+    if (!user) {
+      return res.status(400).json({ error : "Unable to remove!" });
+    }
+
+    currentUser.followings = currentUser.followings.filter(followingId => followingId !== req.params.userId);
+    currentUser.followers = currentUser.followers.filter(followerId => followerId !== req.params.userId);
+    await currentUser.save();
+
+    user.followings = user.followings.filter(followingId => followingId !== req.user._id.toString());
+    user.followers = user.followers.filter(followerId => followerId !== req.user._id.toString());
+    await user.save();
+
+    res.json({ removed : true });
+  }
+  catch (error) {
+    if (error.reason) {
+      res.status(400).json({ error: "User not found!" });
+    } else {
+      res.status(500).json({ error: error._message });
+    }
   }
 });
 
@@ -400,10 +482,13 @@ router.delete("/delete", auth, async (req, res) => {
     // Remove user likes from posts
     likes.map(async (like) => {
       const post = await Post.findById(like.post);
-      await post.updateOne({
-        $pull: { likes: like._id.toString() },
-      });
+      post.likes.pull(like._id.toString());
+      post.likesCounter -= 1;
+      await post.save();
     });
+  
+    // Remove actual user likes from like model
+    await like.deleteMany({ owner: req.user._id });
 
     // Delete all user post
     await Post.deleteMany({ owner: req.user._id });
@@ -427,7 +512,6 @@ router.delete("/delete", auth, async (req, res) => {
     await req.user.remove();
     res.json({ message: "Account deleted successfully!" });
   } catch (error) {
-    console.log(error);
     res.status(500).json({ error: error._message });
   }
 });

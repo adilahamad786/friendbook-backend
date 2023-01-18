@@ -28,8 +28,8 @@ app.use("/api/post", postRoute);
 app.use("/api/comment", commentRoute);
 app.use("/api/like", likeRoute);
 
-app.get("/", (req, res) => {
-  res.send("Welcome to homepage!");
+app.get("/*", (req, res) => {
+  res.status(404).send()
 });
 
 app.listen(port, () => {

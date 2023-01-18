@@ -22,13 +22,14 @@ router.post("/add/:postId", auth, async (req, res) => {
       owner: req.user._id,
       post: req.params.postId,
       message: req.body.message,
+      username : req.user.username,
+      hasProfilePicture : req.user.hasProfilePicture
     });
-
     await addComment.save();
 
-    await post.updateOne({
-      $push: { comments: addComment._id.toString() },
-    });
+    post.comments.push(addComment._id.toString());
+    post.commentsCounter += 1;
+    await post.save();
 
     res.status(201).json(addComment);
   } catch (error) {
