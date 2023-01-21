@@ -23,50 +23,26 @@ router.put("/:postId", auth, async (req, res) => {
         post: req.params.postId,
       });
 
-      post.likes.pull(hasLiked._id.toString());
-      post.likesCounter -= 1;
+      post.likes.pull(req.user._id.toString());
       await post.save()
       
-      res.status(200).json({ likesCounter : post.likesCounter, hasLiked : false });
+      res.status(200).json({ likes : post.likes, hasLiked : false });
     } else {
       const like = await Like({
         owner: req.user._id,
         post: req.params.postId,
       });
 
-      // await post.updateOne({ $push: { likes: like._id.toString() } });
-      post.likes.push(like._id.toString());
-      post.likesCounter += 1;
+      post.likes.push(req.user._id.toString());
       await post.save();
       await like.save();
-      res.status(200).json({ likesCounter : post.likesCounter, hasLiked : true });
+      res.status(200).json({ likes : post.likes, hasLiked : true });
     }
   } catch (error) {
     if (error.reason) {
       res.status(400).json({ error: "You are trying to like a invalid post!" });
     } else {
       res.status(500).json({ error: error._message });
-    }
-  }
-});
-
-// GET LIKE STATUS
-router.get("/status/:postId", auth, async (req, res) => {
-  try  {
-    const hasLiked = await Like.findOne({
-      owner: req.user._id,
-      post: req.params.postId,
-    });
-
-    if (!hasLiked) {
-      return res.json({ likeStatus : false });
-    }
-
-    res.json({ likeStatus : true });
-  }
-  catch (error) {
-    if (error.reason) {
-      res.status(500).json({ error : error._message });
     }
   }
 });

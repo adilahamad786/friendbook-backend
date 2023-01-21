@@ -36,7 +36,12 @@ router.post("/login", async (req, res) => {
 
     res.json({ user, token });
   } catch (error) {
-    res.status(500).json({ error: error._message });
+    if (error.reason) {
+      res.status(500).json({ error: error._message });
+    }
+    else {
+      res.status(400).json({ error : error.message });
+    }
   }
 });
 
@@ -50,7 +55,12 @@ router.get("/logout", auth, async (req, res) => {
     await req.user.save();
     res.json({ message: "Logout account succesfully!" });
   } catch (error) {
-    res.status(500).json({ error: error._message });
+    if (error.reason) {
+      res.status(500).json({ error: error._message });
+    }
+    else {
+      res.status(400).json({ error : error.message });
+    }
   }
 });
 
@@ -468,9 +478,8 @@ router.delete("/delete", auth, async (req, res) => {
     // Remove user comments from posts
     comments.map(async (comment) => {
       const post = await Post.findById(comment.post);
-      await post.updateOne({
-        $pull: { comments: comment._id.toString() },
-      });
+      post.commentCounter -= 1;
+      await post.save();
     });
 
     // Remove actual user comments from comment model
@@ -482,13 +491,12 @@ router.delete("/delete", auth, async (req, res) => {
     // Remove user likes from posts
     likes.map(async (like) => {
       const post = await Post.findById(like.post);
-      post.likes.pull(like._id.toString());
-      post.likesCounter -= 1;
+      post.likes.pull(req.user._id.toString());
       await post.save();
     });
   
     // Remove actual user likes from like model
-    await like.deleteMany({ owner: req.user._id });
+    await Like.deleteMany({ owner: req.user._id });
 
     // Delete all user post
     await Post.deleteMany({ owner: req.user._id });

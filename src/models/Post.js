@@ -33,15 +33,7 @@ const postSchema = new mongoose.Schema(
       type: Array,
       default: [],
     },
-    likesCounter: {
-      type: Number,
-      default: 0,
-    },
-    comments: {
-      type: Array,
-      default: [],
-    },
-    commentsCounter: {
+    commentCounter: {
       type: Number,
       default: 0,
     },
@@ -58,8 +50,6 @@ postSchema.methods.toJSON = function () {
   // we are not use destructure to filter because the behaviour is different
   const userObject = user.toObject();
 
-  delete userObject.likes
-  delete userObject.comments
   delete userObject.image;
   delete userObject.updatedAt;
   delete userObject.__v;

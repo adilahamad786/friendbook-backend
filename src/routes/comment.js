@@ -18,20 +18,19 @@ router.post("/add/:postId", auth, async (req, res) => {
         .json({ error: "You are trying to comment a invalid post!" });
     }
 
-    const addComment = new Comment({
+    const newComment = new Comment({
       owner: req.user._id,
       post: req.params.postId,
       message: req.body.message,
       username : req.user.username,
       hasProfilePicture : req.user.hasProfilePicture
     });
-    await addComment.save();
+    await newComment.save();
 
-    post.comments.push(addComment._id.toString());
-    post.commentsCounter += 1;
+    post.commentCounter += 1;
     await post.save();
 
-    res.status(201).json(addComment);
+    res.status(201).json({newComment, commentCounter : post.commentCounter});
   } catch (error) {
     if (error.reason) {
       res
@@ -85,11 +84,10 @@ router.delete("/remove/:postId", auth, async (req, res) => {
     }
 
     const post = await Post.findById(deletedComment.post);
-    await post.updateOne({
-      $pull: { comments: deletedComment._id.toString() },
-    });
+    post.commentCounter -= 1;
+    await post.save();
 
-    res.json({ message: "Comment successfully deleted!" });
+    res.json({ commentId : deletedComment._id.toString(), commentCounter : post.commentCounter });
   } catch (error) {
     if (error.reason) {
       res.status(400).json({ error: "You can delete only your comment!" });

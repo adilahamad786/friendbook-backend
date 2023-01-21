@@ -1,8 +1,10 @@
 const router = require("express").Router();
 const Post = require("../models/Post");
+const Like = require("../models/Like");
 const User = require("../models/User");
 const auth = require("../middleware/auth");
 const uploadFile = require("../middleware/uploadFile");
+const Comment = require("../models/Comment");
 
 // CREATE A POST
 router.post(
@@ -72,6 +74,7 @@ router.patch(
 
       if (req.file) {
         post.image = req.file;
+        post.hasImage = true;
       }
 
       await post.save();
@@ -98,7 +101,10 @@ router.delete("/delete/:postId", auth, async (req, res) => {
       return res.status(404).json({ error: "You can delete only your post!" });
     }
 
-    res.json({ message: "Post successfully deleted!" });
+    await Like.deleteMany({ post : post._id });
+    await Comment.deleteMany({ post : post._id });
+
+    res.json({ postId: post._id.toString() });
   } catch (error) {
     if (error.reason) {
       res
