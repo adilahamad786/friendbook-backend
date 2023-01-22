@@ -271,11 +271,12 @@ router.get("/", auth, async (req, res) => {
 // GET ALL USERS
 router.get("/all-users", auth, async (req, res) => {
   try {
-    const users = await User.find();
+    const users = await User.find({$nor:[{$and:[{'_id': req.user._id}]}]});
     const userList = users.map((user) => {
       return { _id: user._id, username: user.username, hasProfilePicture : user.hasProfilePicture };
     });
     res.status(200).json(userList);
+
   } catch (error) {
     res.status(500).json({ error: error._message });
   }
@@ -391,7 +392,11 @@ router.get("/friends/:userId", auth, async (req, res) => {
       followerList.push({ _id, username, hasProfilePicture, followMe : true });
     });
 
-    res.status(200).json([...followerList, ...followingList]);
+    let friendList = [...followerList, ...followingList];
+    // remove duplicate friends from allFriends
+    friendList = [...friendList.reduce((map, friend) => map.set(friend._id.toString(), friend), new Map()).values()];
+
+    res.status(200).json(friendList.sort());
   } catch (error) {
     if (error.reason) {
       res.status(400).json({ error: "Invalid user followings!" });

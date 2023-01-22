@@ -119,7 +119,7 @@ router.delete("/delete/:postId", auth, async (req, res) => {
 // GET USER ALL POSTS
 router.get('/my-posts/:userId', auth, async (req, res) => {
   try {
-    const userPosts = await Post.find({ owner : req.params.userId });
+    const userPosts = await Post.find({ owner : req.params.userId }).sort({"_id" : -1});
     res.json(userPosts);
   }
   catch (error) {
@@ -137,7 +137,7 @@ router.get('/my-posts/:userId', auth, async (req, res) => {
 router.get("/timeline", auth, async (req, res) => {
   console.log("Start");
   try {
-    const posts = await Post.find();
+    const posts = await Post.find().sort({"_id" : -1});
     res.status(200).json(posts);
   } catch (error) {
     if (error.reason) {
