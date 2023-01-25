@@ -18,6 +18,9 @@ const commentSchema = new mongoose.Schema({
     required: true,
     default: false
   },
+  profilePictureLink: {
+    type: String
+  },
   message: {
     type: String,
     required: true,

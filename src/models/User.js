@@ -67,6 +67,9 @@ const userSchema = new mongoose.Schema(
       type: Boolean,
       default : false
     },
+    storyLink: {
+      type: String
+    },
     followings: {
       type: Array,
       default: [],
