@@ -31,8 +31,12 @@ router.post(
         owner: req.user._id,
         username: req.user.username,
         hasProfilePicture: req.user.hasProfilePicture,
+        profilePictureLink: req.user.profilePictureLink,
         hasImage
       });
+
+      newPost.imageLink = `${process.env.SERVER_ENDPOINT}/api/post/${newPost._id.toString()}`;
+
       const savePost = await newPost.save();
       res.status(201).json(savePost);
     } catch (error) {

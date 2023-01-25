@@ -102,11 +102,13 @@ router.patch(
       if (req.files?.profilePicture) {
         req.user.profilePicture = req.files.profilePicture[0];
         req.user.hasProfilePicture = true;
+        req.user.profilePictureLink = `${process.env.SERVER_ENDPOINT}/api/user/profile-picture/${req.user._id.toString()}`;
       }
 
       if (req.files?.coverPicture) {
         req.user.coverPicture = req.files.coverPicture[0];
         req.user.hasCoverPicture = true;
+        req.user.coverPictureLink = `${process.env.SERVER_ENDPOINT}/api/user/cover-picture/${req.user._id.toString()}`
       }
 
       await req.user.save();

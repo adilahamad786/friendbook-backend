@@ -17,6 +17,9 @@ const postSchema = new mongoose.Schema(
       required: true,
       default: false
     },
+    profilePictureLink: {
+      type: String
+    },
     message: {
       type: String,
       maxlength: 1000,
@@ -28,6 +31,9 @@ const postSchema = new mongoose.Schema(
       type: Boolean,
       required: true,
       default: false
+    },
+    imageLink: {
+      type: String
     },
     likes: {
       type: Array,

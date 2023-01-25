@@ -47,12 +47,18 @@ const userSchema = new mongoose.Schema(
       type: Boolean,
       default : false
     },
+    profilePictureLink: {
+      type: String
+    },
     coverPicture: {
       type: Object,
     },
     hasCoverPicture: {
       type: Boolean,
       default : false
+    },
+    coverPictureLink: {
+      type: String
     },
     story: {
       type: Object,
