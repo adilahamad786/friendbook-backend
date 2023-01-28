@@ -3,6 +3,9 @@ const auth = require("../middleware/auth");
 const uploadFile = require("../middleware/uploadFile");
 const user = require("../controllers/user");
 
+// SEND OTP ON EMAIL
+router.post("/verification", user.verification);
+
 // REGISTER/CREATE/SIGNUP A USER
 router.post("/register", user.register);
 

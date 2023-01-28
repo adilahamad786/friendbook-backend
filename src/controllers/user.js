@@ -2,16 +2,68 @@ const User = require("../models/User");
 const Post = require("../models/Post");
 const Comment = require("../models/Comment");
 const Like = require('../models/Like');
+const Verification = require("../models/Verification");
+const { sendOtpOnEmail } = require("../services/email");
+
+// Send OTP for email verification
+exports.verification = async (req, res) => {
+  try {
+    // find and delete old verification if available
+    const oldVerification = await Verification.findOne({ email : req.body.email });
+    if (oldVerification) {
+      await oldVerification.remove();
+    }
+
+    // Generate 6-Digit OTP
+    const otp = Math.floor(Math.random() * 899999 + 100000);
+
+    // Store this OTP and user email in database as expire in 5 minutes
+    await Verification.create({ email: req.body.email, otp });
+
+    // Send OTP on user email for account validation
+    const info = await sendOtpOnEmail(req.body.email, otp);
+    
+    if (!info.messageId)
+      return res.status(200).json({ error : "Internal server error!" });
+    
+    return res.status(200).json({ message : `OTP sent successfully on ${req.body.email}, Please check your email!` });
+  }
+  catch (error) {
+    if (error.keyPattern) {
+      res.status(400).json({ error: error.message });
+    } else {
+      console.log(error.error)
+      res.status(500).json({ error: error._message });
+    }
+  }
+}
 
 // Register a new user
 exports.register = async (req, res) => {
   try {
+    // check email and OTP is valid before storing user
+    const isValid = await Verification.findOne({ email: req.body.email });
+    if (!isValid) {
+      return res.status(403).json({ error : "Please verify your email!" });
+    }
+
+    // Validate OTP
+    if (!(isValid.otp === Number(req.body.otp))) {
+      return res.status(403).json({ error : "Invalid OTP" });
+    }
+
+    // Check all required information availability
+    if (!(req.body.email && req.body.username && req.body.password)) {
+      res.status(403).json({ error : "Username, Email and Passowrd must required for creating an account!"});
+    }
+
     // Create a user
     const user = new User(req.body);
-    // Generate a jwt token
+
+    // Generate a jwt token and save in database
     await user.generateAuthToken();
-    // Save user and respond
-    await user.save();
+
+    // send response
     res.status(201).json({ message: "Account created successfully!" });
   } catch (error) {
     if (error.keyPattern) {
