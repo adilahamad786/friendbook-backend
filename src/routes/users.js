@@ -4,13 +4,22 @@ const uploadFile = require("../middleware/uploadFile");
 const user = require("../controllers/user");
 
 // SEND OTP ON EMAIL
-router.post("/verification", user.verification);
+router.post("/send-otp", user.sendVerificationOtp);
 
 // REGISTER/CREATE/SIGNUP A USER
 router.post("/register", user.register);
 
 // LOGIN/SIGNIN
 router.post("/login", user.login);
+
+// FORGOT PASSWORD
+router.post("/forgot-otp", user.sendForgotOtp);
+
+// VERIFY OTP
+router.post("/verify-otp", user.verifyOtp);
+
+// FORGOT PASSWORD
+router.post("/reset-password", user.resetPassword);
 
 // LOGOUT
 router.get("/logout", auth, user.logout);

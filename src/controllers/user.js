@@ -2,37 +2,44 @@ const User = require("../models/User");
 const Post = require("../models/Post");
 const Comment = require("../models/Comment");
 const Like = require('../models/Like');
-const Verification = require("../models/Verification");
-const { sendOtpOnEmail } = require("../services/email");
+const VerificationSession = require("../models/VerificationSession");
+const { sendAccountVerificationOtpOnEmail, sendForgotPasswordOtpOnEmail } = require("../services/email");
 
 // Send OTP for email verification
-exports.verification = async (req, res) => {
+exports.sendVerificationOtp = async (req, res) => {
   try {
-    // find and delete old verification if available
-    const oldVerification = await Verification.findOne({ email : req.body.email });
-    if (oldVerification) {
-      await oldVerification.remove();
+    // Check email/account is exist or not in database
+    const emailIsExist = await User.exists({ email: req.body.email }) ? true : false;
+
+    if (emailIsExist) {
+      return res.status(403).json({ error : "Account already exist!" });
+    }
+
+    // Find and delete old verificationSession if available for this email
+    const oldVerificationSession = await VerificationSession.findOne({ email : req.body.email });
+
+    if (oldVerificationSession) {
+      await oldVerificationSession.remove();
     }
 
     // Generate 6-Digit OTP
     const otp = Math.floor(Math.random() * 899999 + 100000);
 
-    // Store this OTP and user email in database as expire in 5 minutes
-    await Verification.create({ email: req.body.email, otp });
+    // Create VerificationSession for current OTP and email, which is expire in 5 minutes
+    await VerificationSession.create({ email: req.body.email, otp });
 
     // Send OTP on user email for account validation
-    const info = await sendOtpOnEmail(req.body.email, otp);
+    const info = await sendAccountVerificationOtpOnEmail(req.body.email, otp);
     
     if (!info.messageId)
       return res.status(200).json({ error : "Internal server error!" });
     
-    return res.status(200).json({ message : `OTP sent successfully on ${req.body.email}, Please check your email!` });
+    res.status(200).json({ message : `Verification otp sent successfully on ${req.body.email}, Please check your email!` });
   }
   catch (error) {
     if (error.keyPattern) {
       res.status(400).json({ error: error.message });
     } else {
-      console.log(error.error)
       res.status(500).json({ error: error._message });
     }
   }
@@ -41,16 +48,15 @@ exports.verification = async (req, res) => {
 // Register a new user
 exports.register = async (req, res) => {
   try {
-    // check email and OTP is valid before storing user
-    const isValid = await Verification.findOne({ email: req.body.email });
-    if (!isValid) {
-      return res.status(403).json({ error : "Please verify your email!" });
+    // check VerificationSession for email and OTP is valid or not, before saving user
+    const isValidSession = await VerificationSession.findOne({ email: req.body.email, otp: req.body.otp });
+
+    if (!isValidSession) {
+      return res.status(403).json({ error : "Invalid OTP!" });
     }
 
-    // Validate OTP
-    if (!(isValid.otp === Number(req.body.otp))) {
-      return res.status(403).json({ error : "Invalid OTP" });
-    }
+    // Remove/Delete VerificationSession
+    await isValidSession.remove()
 
     // Check all required information availability
     if (!(req.body.email && req.body.username && req.body.password)) {
@@ -92,6 +98,111 @@ exports.login = async (req, res) => {
     }
   }
 };
+
+// Forgot password
+exports.sendForgotOtp = async (req, res) => {
+  try {
+    // check email/user is valid
+    const user = await User.findOne({ email: req.body.email });
+
+    if (!user) {
+      return res.status(400).json({error : "Account not found!"});
+    }
+
+    // Find and delete old verificationSession if available for this email
+    const oldVerificationSession = await VerificationSession.findOne({ email : req.body.email });
+
+    if (oldVerificationSession) {
+      await oldVerificationSession.remove();
+    }
+
+    // Generate 6-Digit OTP
+    const otp = Math.floor(Math.random() * 899999 + 100000);
+
+    // Create VerificationSession for current OTP and email, which is expire in 5 minutes
+    await VerificationSession.create({ email: req.body.email, otp });
+
+    // Send OTP on user email for account validation
+    const info = await sendForgotPasswordOtpOnEmail(req.body.email, otp);
+    
+    if (!info.messageId)
+      return res.status(200).json({ error : "Internal server error!" });
+    
+      res.status(200).json({ message : `We have sent an OTP on your ${req.body.email}, for resetting your password, Please check your email.` });
+  }
+  catch (error) {
+    if (error.reason) {
+      res.status(500).json({ error: error._message });
+    } else {
+      res.status(400).json({ error: error.message });
+    }
+  }
+}
+
+// VERIFY OTP
+exports.verifyOtp = async (req, res) => {
+  try {
+    // Check email/account is exist or not in database
+    const emailIsExist = await User.exists({ email: req.body?.email }) ? true : false;
+
+    if (!emailIsExist) {
+      return res.status(400).json({error : "Account not Exist!"});
+    }
+
+    // Check VerificationSession OTP and email validity
+    const otpIsValid = await VerificationSession.exists({ email: req.body?.email, otp: Number(req.body?.otp) }) ? true : false;
+
+    if (!otpIsValid) {
+      return res.status(403).json({ error : "Invalid OTP!" });
+    }
+
+    res.json({ otpIsVerified : otpIsValid });
+  }
+  catch (error) {
+    if (error.reason) {
+      res.status(500).json({ error: error._message || "Email and Otp Required"});
+    } else {
+      res.status(400).json({ error: error.message });
+    }
+  }
+}
+
+// Reset password
+exports.resetPassword = async (req, res) => {
+  try {
+    // check email/user is valid
+    const user = await User.findOne({ email: req.body.email });
+
+    if (!user) {
+      return res.status(400).json({error : "Account not found!"});
+    }
+
+    // Check VerificationSession OTP and email validity
+    const isValidSession = await VerificationSession.findOne({ email: user.email, otp: req.body.otp });
+
+    if (!isValidSession) {
+      return res.status(403).json({ error : "Invalid OTP!" });
+    }
+
+    // check password validity
+    if (!(req.body.password.length >= 6)) {
+      return res.status(400).json({ error : "Password must contain atleast 6-digit!" });
+    }
+    
+    // Update password and save user
+    user.password = req.body.password;
+    await user.save()
+
+    res.json({ message : "Password updated successfully!" });
+  }
+  catch (error) {
+    if (error.reason) {
+      res.status(500).json({ error: error._message });
+    } else {
+      res.status(400).json({ error: error.message });
+    } 
+  }
+}
 
 // Logout a user
 exports.logout = async (req, res) => {

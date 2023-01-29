@@ -1,7 +1,7 @@
 const mongoose = require("mongoose");
 const validator = require("validator");
 
-const verficationSchema = new mongoose.Schema(
+const sessionSchema = new mongoose.Schema(
   {
     email: {
       type: String,
@@ -16,16 +16,15 @@ const verficationSchema = new mongoose.Schema(
       },
     },
     otp: {
-      type: Number
-    },
-    token: {
-      type: String
+      type: Number,
+      required : true
     },
     expireAt : {
       type: Date,
-      default: Date(),
+      default: Date,
+      expires : 300
     }
   }
 );
 
-module.exports = mongoose.model("Verification", verficationSchema);
+module.exports = mongoose.model("VerificationSession", sessionSchema);
