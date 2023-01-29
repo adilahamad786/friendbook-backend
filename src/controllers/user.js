@@ -181,7 +181,7 @@ exports.resetPassword = async (req, res) => {
     const isValidSession = await VerificationSession.findOne({ email: user.email, otp: req.body.otp });
 
     if (!isValidSession) {
-      return res.status(403).json({ error : "Invalid OTP!" });
+      return res.status(403).json({ error : "Session has expired!" });
     }
 
     // check password validity
