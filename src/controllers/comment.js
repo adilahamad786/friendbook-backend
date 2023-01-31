@@ -4,19 +4,21 @@ const Post = require("../models/Post");
 // Add a new comment
 exports.add = async (req, res) => {
   try {
-    if (!req.body.message) {
+    if (!req.body?.message) {
       return res.status(404).json({ error: "Please provide comment message!" });
     }
 
-    const post = await Post.findById(req.params.postId);
+    // Check post is valid or not
+    const isValidPost = await Post.exists({ _id : req.params.postId });
 
-    if (!post) {
+    if (!isValidPost) {
       return res
         .status(404)
         .json({ error: "You are trying to comment a invalid post!" });
     }
 
-    const newComment = new Comment({
+    // Create and save post
+    const newComment = await Comment.create({
       owner: req.user._id,
       post: req.params.postId,
       message: req.body.message,
@@ -24,12 +26,12 @@ exports.add = async (req, res) => {
       hasProfilePicture: req.user.hasProfilePicture,
       profilePictureLink: req.user.profilePictureLink
     });
-    await newComment.save();
 
-    post.commentCounter += 1;
-    await post.save();
+    // Update commentCounter inside the post
+    await Post.updateOne({ _id : req.params.postId }, { $inc : { commentCounter : 1 } });
 
-    res.status(201).json({ newComment, commentCounter: post.commentCounter });
+    // Send new comment
+    res.status(201).json(newComment);
   } catch (error) {
     if (error.reason) {
       res
@@ -44,19 +46,28 @@ exports.add = async (req, res) => {
 // Update a comment
 exports.update = async (req, res) => {
   try {
+    // Get and validate comment
     const comment = await Comment.findById(req.params.commentId);
 
     if (!comment) {
       return res.status(404).json({ error: "Comment not found!" });
     }
 
-    if (!req.body?.message) {
-      return res.status(400).json({ error: "Invalid update!" });
+    // Check current user is owner or not
+    if (!(comment.owner === req.user._id.toString())) {
+      return res.status(403).json({ error : "You can update only your commnet!" });
     }
 
+    // Confirm message provide or not
+    if (!req.body?.message) {
+      return res.status(400).json({ error: "Please provide a comment message!" });
+    }
+
+    // Update and save comment
     comment.message = req.body.message;
     await comment.save();
 
+    // Send updated comment
     res.json(comment);
   } catch (error) {
     if (error.reason) {
@@ -70,25 +81,26 @@ exports.update = async (req, res) => {
 // Delete a comment
 exports.delete = async (req, res) => {
   try {
-    const deletedComment = await Comment.findOneAndDelete({
-      _id: req.params.postId,
+    // Getting comment/commentId from database
+    const comment = await Comment.findOne({
+      _id: req.params.commentId,
       owner: req.user._id,
-    });
+    }, { _id : 1, post : 1 });
 
-    if (!deletedComment) {
+    if (!comment) {
       return res
         .status(400)
         .json({ error: "You can delete only your comment!" });
     }
 
-    const post = await Post.findById(deletedComment.post);
-    post.commentCounter -= 1;
-    await post.save();
+    // Delete comment from database
+    await comment.remove();
 
-    res.json({
-      commentId: deletedComment._id.toString(),
-      commentCounter: post.commentCounter,
-    });
+    // decrement comment counter inside post
+    await Post.updateOne({ _id : comment.post }, { $inc : { commentCounter : -1 } });
+
+    // Send deleted comment, commentId
+    res.json({ commentId: comment._id.toString() });
   } catch (error) {
     if (error.reason) {
       res.status(400).json({ error: "You can delete only your comment!" });
@@ -101,7 +113,10 @@ exports.delete = async (req, res) => {
 // Get all post related comment
 exports.getAllPostRelatedComments = async (req, res) => {
   try {
+    // Fetch all post related comments
     const comments = await Comment.find({ post: req.params.postId });
+
+    // Send comments
     res.json(comments);
   } catch (error) {
     if (error.reason) {

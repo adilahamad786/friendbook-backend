@@ -21,7 +21,7 @@ const sessionSchema = new mongoose.Schema(
     },
     expireAt : {
       type: Date,
-      default: Date,
+      default: () => Date.now(),
       expires : 300
     }
   }
