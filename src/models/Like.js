@@ -1,15 +1,15 @@
 const mongoose = require("mongoose");
-const User = require("../models/User");
-const Post = require("../models/Post");
 
 const likeSchema = new mongoose.Schema({
   owner: {
     type : mongoose.Schema.Types.ObjectId,
-    ref : User
+    ref : "User",
+    required : true
   },
   post: {
     type : mongoose.Schema.Types.ObjectId,
-    ref : Post
+    ref : "Post",
+    required : true
   }
 },
 {
