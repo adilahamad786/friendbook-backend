@@ -1,8 +1,16 @@
 const mongoose = require("mongoose");
+const User = require("../models/User");
+const Post = require("../models/Post");
 
 const likeSchema = new mongoose.Schema({
-  owner: mongoose.Schema.Types.ObjectId,
-  post: mongoose.Schema.Types.ObjectId,
+  owner: {
+    type : mongoose.Schema.Types.ObjectId,
+    ref : User
+  },
+  post: {
+    type : mongoose.Schema.Types.ObjectId,
+    ref : Post
+  }
 },
 {
   timestamps: true,

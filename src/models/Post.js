@@ -35,9 +35,9 @@ const postSchema = new mongoose.Schema(
     imageLink: {
       type: String
     },
-    likes: {
-      type: Array,
-      default: [],
+    likeCounter: {
+      type: Number,
+      default: 0,
     },
     commentCounter: {
       type: Number,

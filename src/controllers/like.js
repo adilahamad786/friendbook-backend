@@ -4,37 +4,37 @@ const Post = require("../models/Post");
 // Like/Dislike a post
 exports.likeAndDislike = async (req, res) => {
   try {
-    const post = await Post.findById(req.params.postId);
+    // Check post is valid/exist or not
+    const postExist = await Post.exists({ _id : req.params.postId });
 
-    if (!post) {
+    if (!postExist) {
       return res.status(404).json({ error: "Post not exist!" });
     }
 
-    const hasLiked = await Like.findOne({
+    // Remove like if exist
+    const removeLike = await Like.findOneAndDelete({
       owner: req.user._id,
       post: req.params.postId,
     });
 
-    if (hasLiked) {
-      await Like.findOneAndDelete({
-        owner: req.user._id,
-        post: req.params.postId,
-      });
+    if (removeLike) {
+      // Decrement likeCounter in the post
+      await Post.updateOne({ _id : req.params.postId }, { $inc : { likeCounter : -1 } });
 
-      post.likes.pull(req.user._id.toString());
-      await post.save();
-
-      res.status(200).json({ likes: post.likes, hasLiked: false });
+      // Send like status of post
+      res.status(200).json({ liked: false });
     } else {
-      const like = await Like({
+      // Create like and Save
+      await Like.create({
         owner: req.user._id,
         post: req.params.postId,
       });
 
-      post.likes.push(req.user._id.toString());
-      await post.save();
-      await like.save();
-      res.status(200).json({ likes: post.likes, hasLiked: true });
+      // Decrement likeCounter in the post
+      await Post.updateOne({ _id : req.params.postId }, { $inc : { likeCounter : 1 } });
+
+      // Send like status of post
+      res.status(200).json({ liked: true });
     }
   } catch (error) {
     if (error.reason) {
@@ -42,5 +42,24 @@ exports.likeAndDislike = async (req, res) => {
     } else {
       res.status(500).json({ error: error._message });
     }
+  }
+};
+
+// Get like status
+exports.getLikeStatus = async (req, res) => {
+  try {
+    // Check like or not
+    const liked = await Like.exists({ owner : req.user._id, post : req.params.postId });
+    if (liked) {
+      // Send Post liked status
+      return res.json({ liked : true });
+    }
+
+    // Send Post not liked status
+    res.json({ liked : false });
+  }
+  catch (error) {
+    console.log(error)
+    res.status(500).json({ error: error.message });
   }
 };
