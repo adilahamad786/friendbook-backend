@@ -33,6 +33,9 @@ exports.add = async (req, res) => {
       profilePictureLink : req.user.profilePictureLink
     }
 
+    // Delete unwanted fileds form newComment
+    delete newComment.__v;
+
     // Update commentCounter inside the post
     await Post.updateOne({ _id : req.params.postId }, { $inc : { commentCounter : 1 } });
 
@@ -52,30 +55,32 @@ exports.add = async (req, res) => {
 // Update a comment
 exports.update = async (req, res) => {
   try {
-    // Get and validate comment
-    const comment = await Comment.findById(req.params.commentId);
-
-    if (!comment) {
-      return res.status(404).json({ error: "Comment not found!" });
-    }
-
-    // Check current user is owner or not
-    if (!(comment.owner === req.user._id.toString())) {
-      return res.status(403).json({ error : "You can update only your commnet!" });
-    }
-
-    // Confirm message provide or not
+    // Check update comment message provide or not
     if (!req.body?.message) {
-      return res.status(400).json({ error: "Please provide a comment message!" });
+      return res.json(400).json({ error : "Please provide comment message!" });
     }
 
-    // Update and save comment
-    comment.message = req.body.message;
-    await comment.save();
+    // updating comment
+    const comment = await Comment.findOneAndUpdate({ _id: req.params.commentId, owner: req.user._id }, { message: req.body?.message }, { select : "_id post message createdAt updatedAt"});
 
+    // If comment not found or not update then send response
+    if (!comment) {
+      return res.status(403).json({ error : "You can update only your comment!" });
+    }
+
+    // Prepair updatedComment object for response
+    let updatedComment = comment.toObject();
+    updatedComment.owner = {
+      _id : req.user._id,
+      username: req.user.username,
+      hasProfilePicture : req.user.hasProfilePicture,
+      profilePictureLink : req.user.profilePictureLink
+    }
+    
     // Send updated comment
-    res.json(comment);
+    res.json(updatedComment);
   } catch (error) {
+    console.log(error)
     if (error.reason) {
       return res.status(400).json({ error: "Comment not found!" });
     } else {
@@ -88,21 +93,19 @@ exports.update = async (req, res) => {
 exports.delete = async (req, res) => {
   try {
     // Getting comment/commentId from database
-    const comment = await Comment.findOne({
+    const comment = await Comment.findOneAndDelete({
       _id: req.params.commentId,
       owner: req.user._id,
-    }, { _id : 1, post : 1 });
+    });
 
+    // Send response if comment not delete or not found
     if (!comment) {
       return res
         .status(400)
         .json({ error: "You can delete only your comment!" });
     }
 
-    // Delete comment from database
-    await comment.remove();
-
-    // decrement comment counter inside post
+    // Decrement comment counter inside post
     await Post.updateOne({ _id : comment.post }, { $inc : { commentCounter : -1 } });
 
     // Send deleted comment, commentId
@@ -120,7 +123,7 @@ exports.delete = async (req, res) => {
 exports.getAllPostRelatedComments = async (req, res) => {
   try {
     // Fetch all post related comments
-    const comments = await Comment.find({ post: req.params.postId }).populate({ path : "owner", select : "_id username hasProfilePicture profilePictureLink" });
+    const comments = await Comment.find({ post: req.params.postId }, { __v: 0 }).populate({ path : "owner", select : "_id username hasProfilePicture profilePictureLink" });
 
     // Send comments
     res.json(comments);

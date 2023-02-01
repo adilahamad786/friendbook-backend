@@ -72,7 +72,7 @@ exports.update = async (req, res) => {
 
     // Checking post is exist or not
     if (!post) {
-      return res.status(404).json({ error: "Post not found!" });
+      return res.status(404).json({ error: "You can update only your post!" });
     }
       
     // Prepair newPost object for response
@@ -105,7 +105,7 @@ exports.delete = async (req, res) => {
       owner: req.user._id,
     });
 
-    // Send response if post not found
+    // Send response if post not found or not delete
     if (!post) {
       return res.status(404).json({ error: "You can delete only your post!" });
     }
