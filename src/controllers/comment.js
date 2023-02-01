@@ -18,14 +18,20 @@ exports.add = async (req, res) => {
     }
 
     // Create and save post
-    const newComment = await Comment.create({
+    const createdComment = await Comment.create({
       owner: req.user._id,
       post: req.params.postId,
       message: req.body.message,
-      username: req.user.username,
-      hasProfilePicture: req.user.hasProfilePicture,
-      profilePictureLink: req.user.profilePictureLink
     });
+
+    // Prepair newComment object for response
+    newComment = createdComment.toObject()
+    newComment.owner = {
+      _id : req.user._id,
+      username: req.user.username,
+      hasProfilePicture : req.user.hasProfilePicture,
+      profilePictureLink : req.user.profilePictureLink
+    }
 
     // Update commentCounter inside the post
     await Post.updateOne({ _id : req.params.postId }, { $inc : { commentCounter : 1 } });
@@ -114,7 +120,7 @@ exports.delete = async (req, res) => {
 exports.getAllPostRelatedComments = async (req, res) => {
   try {
     // Fetch all post related comments
-    const comments = await Comment.find({ post: req.params.postId });
+    const comments = await Comment.find({ post: req.params.postId }).populate({ path : "owner", select : "_id username hasProfilePicture profilePictureLink" });
 
     // Send comments
     res.json(comments);
