@@ -21,7 +21,7 @@ exports.add = async (req, res) => {
     
     // Add imageUrl if provide an image
     if (req?.file)
-      createdPost.imageUrl = `/api/post/${createdPost._id.toString()}`;
+      createdPost.imageUrl = `/api/post/${createdPost._id}`;
     
     // Save createdPost
     await createdPost.save();
@@ -31,8 +31,7 @@ exports.add = async (req, res) => {
     newPost.owner = {
       _id : req.user._id,
       username: req.user.username,
-      hasProfilePicture : req.user.hasProfilePicture,
-      profilePictureLink : req.user.profilePictureLink
+      profilePictureUrl : req.user.profilePictureUrl
     }
 
     // Delete unwanted fields from newPost
@@ -81,8 +80,7 @@ exports.update = async (req, res) => {
     updatedPost.owner = {
       _id : req.user._id,
       username: req.user.username,
-      hasProfilePicture : req.user.hasProfilePicture,
-      profilePictureLink : req.user.profilePictureLink
+      profilePictureUrl : req.user.profilePictureUrl
     }
 
     // Send updated post as response
@@ -115,7 +113,7 @@ exports.delete = async (req, res) => {
     await Comment.deleteMany({ post: post._id });
 
     // Send deleted postId as response 
-    res.json({ postId: post._id.toString() });
+    res.json({ postId: post._id });
   } catch (error) {
     if (error.reason) {
       res
@@ -132,7 +130,7 @@ exports.getUserPosts = async (req, res) => {
   try {
     // Fetch all user post from database
     const userPosts = await Post.find({ owner: req.params.userId }, { image : 0 , __v : 0})
-    .populate({ path : "owner", select : "_id username hasProfilePicture profilePictureLink" })
+    .populate({ path : "owner", select : "_id username profilePictureUrl" })
     .sort({ _id: -1, });
     
     // Send all user posts as response
@@ -153,7 +151,7 @@ exports.getAllTimelinePosts = async (req, res) => {
   try {
     // Fetch all Time line post
     const posts = await Post.find({}, { image : 0 , __v : 0})
-      .populate({ path : "owner", select : "_id username hasProfilePicture profilePictureLink" })
+      .populate({ path : "owner", select : "_id username profilePictureUrl" })
       .sort({ _id: -1 });
 
     // Send all timeline posts as response

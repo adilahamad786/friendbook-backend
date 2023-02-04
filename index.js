@@ -20,7 +20,7 @@ mongoose.connect(mongoConnection, () => {
   console.log("MongoDB connected!");
 });
 
-//mongoose.set('debug', true);
+// mongoose.set('debug', true);
 
 // middleware
 app.use(express.json());

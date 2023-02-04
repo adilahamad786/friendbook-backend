@@ -59,7 +59,6 @@ exports.getLikeStatus = async (req, res) => {
     res.json({ liked : false });
   }
   catch (error) {
-    console.log(error)
     res.status(500).json({ error: error.message });
   }
 };

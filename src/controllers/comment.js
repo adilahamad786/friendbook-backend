@@ -5,7 +5,7 @@ const Post = require("../models/Post");
 exports.add = async (req, res) => {
   try {
     if (!req.body?.message) {
-      return res.status(404).json({ error: "Please provide comment message!" });
+      return res.status(404).json({ error: "Please provide a comment message!" });
     }
 
     // Check post is valid or not
@@ -29,8 +29,7 @@ exports.add = async (req, res) => {
     newComment.owner = {
       _id : req.user._id,
       username: req.user.username,
-      hasProfilePicture : req.user.hasProfilePicture,
-      profilePictureLink : req.user.profilePictureLink
+      profilePictureUrl : req.user.profilePictureUrl
     }
 
     // Delete unwanted fileds form newComment
@@ -61,7 +60,7 @@ exports.update = async (req, res) => {
     }
 
     // updating comment
-    const comment = await Comment.findOneAndUpdate({ _id: req.params.commentId, owner: req.user._id }, { message: req.body?.message }, { select : "_id post message createdAt updatedAt"});
+    const comment = await Comment.findOneAndUpdate({ _id: req.params.commentId, owner: req.user._id }, { message: req.body.message }, { select : "_id post message createdAt updatedAt"});
 
     // If comment not found or not update then send response
     if (!comment) {
@@ -70,17 +69,16 @@ exports.update = async (req, res) => {
 
     // Prepair updatedComment object for response
     let updatedComment = comment.toObject();
+    updatedComment.message = req.body.message;
     updatedComment.owner = {
       _id : req.user._id,
       username: req.user.username,
-      hasProfilePicture : req.user.hasProfilePicture,
-      profilePictureLink : req.user.profilePictureLink
+      profilePictureUrl : req.user.profilePictureUrl
     }
     
     // Send updated comment
     res.json(updatedComment);
   } catch (error) {
-    console.log(error)
     if (error.reason) {
       return res.status(400).json({ error: "Comment not found!" });
     } else {
@@ -109,7 +107,7 @@ exports.delete = async (req, res) => {
     await Post.updateOne({ _id : comment.post }, { $inc : { commentCounter : -1 } });
 
     // Send deleted comment, commentId
-    res.json({ commentId: comment._id.toString() });
+    res.json({ commentId: comment._id });
   } catch (error) {
     if (error.reason) {
       res.status(400).json({ error: "You can delete only your comment!" });
@@ -123,7 +121,7 @@ exports.delete = async (req, res) => {
 exports.getAllPostRelatedComments = async (req, res) => {
   try {
     // Fetch all post related comments
-    const comments = await Comment.find({ post: req.params.postId }, { __v: 0 }).populate({ path : "owner", select : "_id username hasProfilePicture profilePictureLink" });
+    const comments = await Comment.find({ post: req.params.postId }, { __v: 0 }).populate({ path : "owner", select : "_id username profilePictureUrl" });
 
     // Send comments
     res.json(comments);

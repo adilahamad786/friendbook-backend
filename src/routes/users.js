@@ -44,12 +44,12 @@ router.get("/profile-picture/:userId", user.serveUserProfilePicture);
 // GET/SERVE USER COVERPICTURE BY URL LINK
 router.get("/cover-picture/:userId", user.serveUserCoverPicture);
 
-// CREATE OR UPDATE OR DELETE A STORY
+// CREATE OR UPDATE USER STORY
 router.put(
   "/create-story",
   auth,
   uploadFile.single("story"),
-  user.createOrUpdateOrDeleteStroy,
+  user.createOrUpdateStroy,
   (error, req, res, next) => {
     res.status(400).json({ error: error.message });
   }

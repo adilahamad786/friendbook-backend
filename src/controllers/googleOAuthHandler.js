@@ -39,7 +39,7 @@ const googleOAuthHandler = async (req, res) => {
     res.cookie("token", token).redirect(process.env.ORIGIN);
   } catch (error) {
     console.log("Failed to authorize google user!");
-    res.status(403).redirect(`${process.env.ORIGIN}/oauth/error`);
+    res.status(403).redirect(`${process.env.ORIGIN}/oauth-failed`);
   }
 };
 

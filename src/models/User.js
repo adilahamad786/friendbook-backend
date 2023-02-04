@@ -2,7 +2,6 @@ const mongoose = require("mongoose");
 const validator = require("validator");
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcrypt");
-const Post = require("../models/Post");
 
 const userSchema = new mongoose.Schema(
   {
@@ -43,41 +42,29 @@ const userSchema = new mongoose.Schema(
     profilePicture: {
       type: Object,
     },
-    hasProfilePicture: {
-      type: Boolean,
-      default : false
-    },
-    profilePictureLink: {
+    profilePictureUrl: {
       type: String
     },
     coverPicture: {
       type: Object,
     },
-    hasCoverPicture: {
-      type: Boolean,
-      default : false
-    },
-    coverPictureLink: {
+    coverPictureUrl: {
       type: String
     },
     story: {
       type: Object,
     },
-    hasStory: {
-      type: Boolean,
-      default : false
-    },
-    storyLink: {
+    storyUrl: {
       type: String
     },
-    followings: {
-      type: Array,
-      default: [],
-    },
-    followers: {
-      type: Array,
-      default: [],
-    },
+    followings: [{
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User" 
+    }],
+    followers: [{
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User" 
+    }],
     isAdmin: {
       type: Boolean,
       default: false,
@@ -114,14 +101,12 @@ const userSchema = new mongoose.Schema(
     pinterest: {
       type: String,
     },
-    tokens: [
-      {
-        token: {
-          type: String,
-          required: true,
-        },
-      },
-    ],
+    tokens: [{
+      token: {
+        type: String,
+        required: true,
+      }
+    }],
   },
   {
     timestamps: true,
@@ -135,11 +120,13 @@ userSchema.methods.toJSON = function () {
   // we are not use destructure to filter because the behaviour is different
   const userObject = user.toObject();
 
+  delete userObject.followers;
+  delete userObject.followings;
+  delete userObject.profilePicture;
+  delete userObject.coverPicture;
+  delete userObject.story;
   delete userObject.password;
   delete userObject.tokens;
-  delete userObject.coverPicture;
-  delete userObject.profilePicture;
-  delete userObject.story;
   delete userObject.createdAt;
   delete userObject.updatedAt;
   delete userObject.isAdmin;
@@ -154,7 +141,8 @@ userSchema.methods.generateAuthToken = async function () {
   const token = jwt.sign({ _id: user._id }, process.env.JWT_SECRET, {
     expiresIn: 86400,
   });
-  user.tokens = user.tokens.concat({ token });
+  // user.tokens = user.tokens.concat({ token });
+  user.tokens.push({ token });
 
   await user.save();
   return token;
@@ -174,7 +162,7 @@ userSchema.pre("save", async function (next) {
 
 // Verify user credentials
 userSchema.statics.findByCredentials = async (email, password) => {
-  const user = await User.findOne({ email });
+  const user = await User.findOne({ email }, { profilePicture: 0, coverPicture: 0, story: 0, isAdmin: 0, __v: 0, createdAt: 0, updatedAt: 0 });
 
   if (!user) {
     throw new Error("Invalid user credentials");
