@@ -24,7 +24,6 @@ const googleOAuthHandler = async (req, res) => {
       user = new User({
         username: googleUser.name,
         email: googleUser.email,
-        hasProfilePicture: true,
         profilePictureLink: googleUser.picture,
         password: googleUser.at_hash,
       });

@@ -24,14 +24,11 @@ exports.likeAndDislike = async (req, res) => {
       // Send like status of post
       res.status(200).json({ liked: false });
     } else {
-      // Create like and Save
-      await Like.create({
-        owner: req.user._id,
-        post: req.params.postId,
-      });
-
-      // Decrement likeCounter in the post
-      await Post.updateOne({ _id : req.params.postId }, { $inc : { likeCounter : 1 } });
+      // Create and Save like and decrement likeCounter in the post, resolve parallely
+      await Promise.all([
+        Like.create({ owner: req.user._id, post: req.params.postId }),
+        Post.updateOne({ _id : req.params.postId }, { $inc : { likeCounter : 1 } })
+      ])
 
       // Send like status of post
       res.status(200).json({ liked: true });

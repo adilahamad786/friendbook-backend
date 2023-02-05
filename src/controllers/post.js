@@ -108,9 +108,11 @@ exports.delete = async (req, res) => {
       return res.status(404).json({ error: "You can delete only your post!" });
     }
 
-    // Remove likes and comments of post
-    await Like.deleteMany({ post: post._id });
-    await Comment.deleteMany({ post: post._id });
+    // Remove likes and comments of post, resolve parallely
+    await Promise.all([
+      Like.deleteMany({ post: post._id }),
+      Comment.deleteMany({ post: post._id })
+    ]);
 
     // Send deleted postId as response 
     res.json({ postId: post._id });

@@ -441,27 +441,32 @@ exports.getFollowStatus = async (req, res) => {
 // Suggestion users/firends for user
 exports.getUserSuggestionUsers = async (req, res) => {
   try {
-    // Create SuggestionList
-    let suggestionList = [];
+    // Crate promise array for parallel data fetching from MongoDB
+    const promises  = [];
 
     // Getting all followers and followings Id's of user followers
-    for (const followerId of req.user?.followers) {
-      const follower = await User.findById({ _id: followerId }, { _id: 0, followers: 1, followings: 1 })
-        .populate({ path: "followers followings", select: "_id username profilePictureUrl"})
-
-      // Update/Add new suggestion items in suggestionList
-      suggestionList = [...suggestionList, ...follower?.followers, ...follower?.followings];
+    for (const followerId of req.user.followers) {
+      // Push all promise in promises array
+      promises.push(User.findById({ _id: followerId }, { _id: 0, followers: 1, followings: 1 })
+          .populate({ path: "followers followings", select: "_id username profilePictureUrl"}));
     };
 
-    // getting all followers and followings Id's of user followings
-    for (const followingId of req.user?.followings) {
-      const following = await User.findById({ _id: followingId }, { _id: 0, followers: 1, followings: 1 })
-        .populate({ path: "followers followings", select: "_id username profilePictureUrl"})
-
-      // Update/Add new suggestion items in suggestionList
-      suggestionList = [...suggestionList, ...following?.followers, ...following?.followings];
+    // Getting all followers and followings Id's of user followings
+    for (const followingId of req.user.followings) {
+      // Push all promise in promises array
+      promises.push(User.findById({ _id: followingId }, { _id: 0, followers: 1, followings: 1 })
+          .populate({ path: "followers followings", select: "_id username profilePictureUrl"}));
     };
+    
+    // Resolve result of all promises parallely
+    let suggestionList = await Promise.all(promises);
 
+    // Clean data as requirement
+    suggestionList = suggestionList.reduce((suggestions, user) => {
+      suggestions = [...suggestions, ...user.followers, ...user.followings];
+      return suggestions;
+    }, [])
+    
     // Remove duplicate suggestion from suggestionList
     suggestionList = [...suggestionList.reduce((map, suggestion) => map.set(suggestion._id.toString(), suggestion), new Map()).values()]
 
@@ -514,27 +519,25 @@ exports.followOrUnfollow = async (req, res) => {
       // Fetch user from database
       const user = await User.findById(req.params.userId, { followers: 1, followings: 1 });
       const currentUser = req.user;
-
+      
       // Unfollow a user
       if (currentUser.followings.includes(user._id)) {
-        await currentUser.update({
-          $pull: { followings: user._id },
-        });
-        await user.update({
-          $pull: { followers: currentUser._id },
-        });
-
+        // Update currnetUser followings and user followers parallely
+        await Promise.all([
+          currentUser.updateOne({ $pull: { followings: user._id } }),
+          user.updateOne({ $pull: { followers: currentUser._id } })
+        ])
+        
         // Send unfollow status
         return res.json({ hasFollow: false });
       }
       // Follow a user
       else {
-        await user.update({
-          $push: { followers: req.user._id },
-        });
-        await currentUser.update({
-          $push: { followings: user._id },
-        });
+        // Update currnetUser followings and user followers parallely
+        await Promise.all([
+          currentUser.updateOne({ $push: { followings: user._id } }),
+          user.updateOne({ $push: { followers: req.user._id } })
+        ]);
 
         // Send follow status
         return res.json({ hasFollow: true });
@@ -562,11 +565,11 @@ exports.removeUserFriend = async (req, res) => {
       return res.status(400).json({ error: "Unable to remove!" });
     }
     
-    // Remove user from currentUser followings and followers
-    await currentUser.update({ $pull: { followers: user._id, followings: user._id }});
-    
-    // Remove currentUser from user followings and followers
-    await user.update({ $pull: { followers: currentUser._id, followings: currentUser._id }});
+    // Remove to each other from each other's followings and followers parallely
+    await Promise.all([
+      currentUser.updateOne({ $pull: { followers: user._id, followings: user._id }}),
+      user.updateOne({ $pull: { followers: currentUser._id, followings: currentUser._id }})
+    ]);
 
     // Send removed status
     res.json({ removed: true });
@@ -584,35 +587,50 @@ exports.delete = async (req, res) => {
   try {
     // Getting all user comments
     const comments = await Comment.find({ owner: req.user._id }, { post: 1 });
-
-    // Remove user comments and decrement commentCounter from posts
-    for (comment of comments) {
-      await Post.updateOne({ _id : comment.post }, { $inc: { commentCounter: -1 } });
-      await comment.remove();
-    };
-
-
+    
     // Getting all user likes
     const likes = await Like.find({ owner: req.user._id }, { post: 1});
 
-    // Remove user likes and decrement likeCounter from posts
-    for (like of likes) {
-      await Post.updateOne({ _id: like.post }, { $inc: { likeCounter: -1 } });
-      await like.remove();
+    // Create promise array for resolve parallely
+    const promises = [];
+
+    // Store user comments and decrement commentCounter from posts, promises in promises array
+    for (comment of comments) {
+      promises.push(
+        Post.updateOne({ _id : comment.post }, { $inc: { commentCounter: -1 } }),
+        comment.remove()
+      );
     };
+
+    // Store user likes and decrement likeCounter from posts, , promises in promises array
+    for (like of likes) {
+      promises.push(
+        Post.updateOne({ _id: like.post }, { $inc: { likeCounter: -1 } }),
+        like.remove()
+      )
+    };
+
+    // Resolve all likePromises parallely
+    await Promise.all(promises);
 
     // Delete all user post
     await Post.deleteMany({ owner: req.user._id });
 
-    // Remove user followings
+    // Craete userPromises for storing remove user followings and followers, promises
+    const userPromises = [];
+
+    // Store remove user followings promises in userPromises
     for (followingId of req.user.followings) {
-      await User.updateOne({ _id: followingId }, { $pull: { followers: req.user._id } });
+      userPromises.push(User.updateOne({ _id: followingId }, { $pull: { followers: req.user._id } }));
     };
 
-    // Remove user followers
+    // Store remove user followers promises in userPromises
     for (followerId of req.user.followers) {
-      await User.updateOne({ _id: followerId }, { $pull: { followings: req.user._id } });
+      userPromises.push(User.updateOne({ _id: followerId }, { $pull: { followings: req.user._id } }));
     };
+
+    // Resolve all userPromises parallely
+    await Promise.all(userPromises);
 
     // Remove user from database
     await req.user.remove();
