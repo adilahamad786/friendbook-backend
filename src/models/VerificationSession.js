@@ -1,5 +1,6 @@
 const mongoose = require("mongoose");
 const validator = require("validator");
+const ErrorHandler = require("../utils/errorHandler");
 
 const sessionSchema = new mongoose.Schema(
   {
@@ -11,7 +12,7 @@ const sessionSchema = new mongoose.Schema(
       trim: true,
       validate(email) {
         if (!validator.isEmail(email)) {
-          throw new Error("Email is not valid!");
+          throw new ErrorHandler("bad_request", "Email is not valid!", 400);
         }
       },
     },

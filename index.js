@@ -1,7 +1,6 @@
 const express = require("express");
 const app = express();
 const dotenv = require("dotenv");
-const mongoose = require("mongoose");
 const morgan = require("morgan");
 const helmet = require("helmet");
 const compression = require("compression");
@@ -10,15 +9,15 @@ const postRoute = require('./src/routes/posts');
 const commentRoute = require('./src/routes/comment');
 const likeRoute = require('./src/routes/like');
 const googleOAuthRoute = require('./src/routes/googleOAuth');
+const errorMiddleware = require("./src/middleware/errorMiddleware");
+const connectDB = require("./src/config/database");
 
+// Configure environment variables
 dotenv.config();
-
 const port = process.env.PORT;
-const mongoConnection = process.env.MONGO_URL;
 
-mongoose.connect(mongoConnection, () => {
-  console.log("MongoDB connected!");
-});
+// Connect with database
+connectDB()
 
 // mongoose.set('debug', true);
 
@@ -34,9 +33,13 @@ app.use("/api/post", postRoute);
 app.use("/api/comment", commentRoute);
 app.use("/api/like", likeRoute);
 
+// Page not found routers
 app.get("/*", (req, res) => {
   res.status(404).send("Page not Found!")
 });
+
+// Error handler middleware
+app.use(errorMiddleware);
 
 app.listen(port, () => {
   console.log(`Server is running on port ${port}`);

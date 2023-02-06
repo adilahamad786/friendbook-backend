@@ -1,5 +1,6 @@
 const axios = require('axios');
 const qs = require('querystring');
+const ErrorHandler = require("../utils/errorHandler");
 
 const getGoogleOAuthTokens = async (code) => {
     try {
@@ -21,7 +22,7 @@ const getGoogleOAuthTokens = async (code) => {
         return res.data;
     }
     catch (error) {
-        throw new Error(error.message);
+        throw new ErrorHandler("internal_error", error, 500);
     }
 }
 

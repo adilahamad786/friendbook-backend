@@ -1,61 +1,52 @@
 const Like = require("../models/Like");
 const Post = require("../models/Post");
+const tryCatch = require("../middleware/tryCatch");
+const ErrorHandler = require("../utils/errorHandler");
 
-// Like/Dislike a post
-exports.likeAndDislike = async (req, res) => {
-  try {
-    // Check post is valid/exist or not
-    const postExist = await Post.exists({ _id : req.params.postId });
 
-    if (!postExist) {
-      return res.status(404).json({ error: "Post not exist!" });
-    }
+// LIEK/DISLIKE A POST
+exports.likeAndDislike = tryCatch(async (req, res) => {
+  // Check post is valid/exist or not
+  const postExist = await Post.exists({ _id : req.params.postId });
 
-    // Remove like if exist
-    const removeLike = await Like.findOneAndDelete({
-      owner: req.user._id,
-      post: req.params.postId,
-    });
-
-    if (removeLike) {
-      // Decrement likeCounter in the post
-      await Post.updateOne({ _id : req.params.postId }, { $inc : { likeCounter : -1 } });
-
-      // Send like status of post
-      res.status(200).json({ liked: false });
-    } else {
-      // Create and Save like and decrement likeCounter in the post, resolve parallely
-      await Promise.all([
-        Like.create({ owner: req.user._id, post: req.params.postId }),
-        Post.updateOne({ _id : req.params.postId }, { $inc : { likeCounter : 1 } })
-      ])
-
-      // Send like status of post
-      res.status(200).json({ liked: true });
-    }
-  } catch (error) {
-    if (error.reason) {
-      res.status(400).json({ error: "You are trying to like a invalid post!" });
-    } else {
-      res.status(500).json({ error: error._message });
-    }
+  if (!postExist) {
+    throw new ErrorHandler("not_found", "Post not exist!", 404);
   }
-};
 
-// Get like status
-exports.getLikeStatus = async (req, res) => {
-  try {
-    // Check like or not
-    const liked = await Like.exists({ owner : req.user._id, post : req.params.postId });
-    if (liked) {
-      // Send Post liked status
-      return res.json({ liked : true });
-    }
+  // Remove like if exist
+  const removeLike = await Like.findOneAndDelete({
+    owner: req.user._id,
+    post: req.params.postId,
+  });
 
-    // Send Post not liked status
-    res.json({ liked : false });
+  if (removeLike) {
+    // Decrement likeCounter in the post
+    await Post.updateOne({ _id : req.params.postId }, { $inc : { likeCounter : -1 } });
+
+    // Send like status of post
+    res.status(200).json({ liked: false });
+  } else {
+    // Create and Save like and decrement likeCounter in the post, resolve parallely
+    await Promise.all([
+      Like.create({ owner: req.user._id, post: req.params.postId }),
+      Post.updateOne({ _id : req.params.postId }, { $inc : { likeCounter : 1 } })
+    ])
+
+    // Send like status of post
+    res.status(200).json({ liked: true });
   }
-  catch (error) {
-    res.status(500).json({ error: error.message });
+});
+
+
+// GET LIKE STATUS
+exports.getLikeStatus = tryCatch(async (req, res) => {
+  // Check like or not
+  const liked = await Like.exists({ owner : req.user._id, post : req.params.postId });
+  if (liked) {
+    // Send Post liked status
+    return res.json({ liked : true });
   }
-};
+
+  // Send Post not liked status
+  res.json({ liked : false });
+});

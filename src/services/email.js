@@ -1,4 +1,5 @@
 const Sib = require("sib-api-v3-sdk");
+const tryCatch = require("../middleware/tryCatch");
 require("dotenv").config();
 
 // Create client instance
@@ -10,7 +11,7 @@ apiKey.apiKey = process.env.SENDINBLUE_API_V3_KEY;
 
 const tranEmailApi = new Sib.TransactionalEmailsApi();
 
-exports.sendAccountVerificationOtpOnEmail = async (email, otp) => {
+exports.sendAccountVerificationOtpOnEmail = tryCatch(async (email, otp) => {
   const sender = {
     email: "friendbook.info@gmail.com",
     name: "Friendbook",
@@ -22,21 +23,17 @@ exports.sendAccountVerificationOtpOnEmail = async (email, otp) => {
     },
   ];
 
-  try {
-    const result = await tranEmailApi.sendTransacEmail({
-      sender,
-      to: receivers,
-      subject: "Friendbook Account verification",
-      textContent: `Your account verification OTP-${otp} is valid for 5 minutes only! Don't share your OTP to others!`,
-    });
+  const result = await tranEmailApi.sendTransacEmail({
+    sender,
+    to: receivers,
+    subject: "Friendbook Account verification",
+    textContent: `Your account verification OTP-${otp} is valid for 5 minutes only! Don't share your OTP to others!`,
+  });
 
-    return result;
-  } catch (error) {
-    throw new Error(error.message);
-  }
-};
+  return result;
+});
 
-exports.sendForgotPasswordOtpOnEmail = async (email, otp) => {
+exports.sendForgotPasswordOtpOnEmail = tryCatch(async (email, otp) => {
   const sender = {
     email: "friendbook.info@gmail.com",
     name: "Friendbook",
@@ -48,16 +45,12 @@ exports.sendForgotPasswordOtpOnEmail = async (email, otp) => {
     },
   ];
 
-  try {
-    const result = await tranEmailApi.sendTransacEmail({
-      sender,
-      to: receivers,
-      subject: "Friendbook Forgot Password",
-      textContent: `Your password reset OTP-${otp} is valid for 5 minutes only! Don't share your OTP to others!`,
-    });
+  const result = await tranEmailApi.sendTransacEmail({
+    sender,
+    to: receivers,
+    subject: "Friendbook Forgot Password",
+    textContent: `Your password reset OTP-${otp} is valid for 5 minutes only! Don't share your OTP to others!`,
+  });
 
-    return result;
-  } catch (error) {
-    throw new Error(error.message);
-  }
-};
+  return result;
+});

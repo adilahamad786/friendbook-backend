@@ -8,10 +8,7 @@ router.post(
   "/create",
   auth,
   uploadFile.single("image"),
-  post.add,
-  (error, req, res, next) => {
-    res.status(400).json({ error: error.message });
-  }
+  post.add
 );
 
 // UPDATE A POST
@@ -19,10 +16,7 @@ router.patch(
   "/update/:postId",
   auth,
   uploadFile.single("image"),
-  post.update,
-  (error, req, res, next) => {
-    res.status(400).json({ error: error.message });
-  }
+  post.update
 );
 
 // DELETE A POST

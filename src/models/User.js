@@ -2,6 +2,7 @@ const mongoose = require("mongoose");
 const validator = require("validator");
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcrypt");
+const ErrorHandler = require("../utils/errorHandler");
 
 const userSchema = new mongoose.Schema(
   {
@@ -21,7 +22,7 @@ const userSchema = new mongoose.Schema(
       trim: true,
       validate(email) {
         if (!validator.isEmail(email)) {
-          throw new Error("Email is not valid!");
+          throw new ErrorHandler("bad_request", "Email is not valid!", 400);
         }
       },
     },
@@ -35,7 +36,7 @@ const userSchema = new mongoose.Schema(
       type: Number,
       validate(value) {
         if (value < 0) {
-          throw new Error("Age is invalid!");
+          throw new ErrorHandler("bad_request", "Age is invalid!", 400);
         }
       },
     },
@@ -165,13 +166,13 @@ userSchema.statics.findByCredentials = async (email, password) => {
   const user = await User.findOne({ email }, { profilePicture: 0, coverPicture: 0, story: 0, isAdmin: 0, __v: 0, createdAt: 0, updatedAt: 0 });
 
   if (!user) {
-    throw new Error("Invalid user credentials");
+    throw new ErrorHandler("unauthorized", "Invalid user credentials", 401);
   }
 
   const isPasswordValid = await bcrypt.compare(password, user.password);
 
   if (!isPasswordValid) {
-    throw new Error("Invalid user credentials");
+    throw new ErrorHandler("unauthorized", "Invalid user credentials", 401);
   }
 
   return user;

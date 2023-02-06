@@ -32,10 +32,7 @@ router.patch(
     { name: "profilePicture", maxCount: 1 },
     { name: "coverPicture", maxCount: 1 },
   ]),
-  user.update,
-  (error, req, res, next) => {
-    res.status(400).json({ error: error.message });
-  }
+  user.update
 );
 
 // GET/SERVE USER PROFILEPICTURE BY URL LINK
@@ -49,10 +46,7 @@ router.put(
   "/create-story",
   auth,
   uploadFile.single("story"),
-  user.createOrUpdateStroy,
-  (error, req, res, next) => {
-    res.status(400).json({ error: error.message });
-  }
+  user.createOrUpdateStroy
 );
 
 // GET ALL TIMELINE STORIES
