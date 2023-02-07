@@ -19,8 +19,6 @@ const port = process.env.PORT;
 // Connect with database
 connectDB()
 
-// mongoose.set('debug', true);
-
 // middleware
 app.use(express.json());
 app.use(helmet());

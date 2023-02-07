@@ -376,6 +376,10 @@ exports.getUserSuggestionUsers = tryCatch(async (req, res) => {
     return true;
   });
 
+  if (suggestionList.length === 0) {
+    suggestionList = await User.find({}, { username: 1, profilePictureUrl: 1 }).limit(5)
+  }
+
   // Send suggestionList as response
   res.json(suggestionList);
 });
