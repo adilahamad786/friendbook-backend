@@ -1,5 +1,4 @@
 const Sib = require("sib-api-v3-sdk");
-const tryCatch = require("../middleware/tryCatch");
 require("dotenv").config();
 
 // Create client instance
@@ -11,7 +10,7 @@ apiKey.apiKey = process.env.SENDINBLUE_API_V3_KEY;
 
 const tranEmailApi = new Sib.TransactionalEmailsApi();
 
-exports.sendAccountVerificationOtpOnEmail = tryCatch(async (email, otp) => {
+exports.sendAccountVerificationOtpOnEmail = async (email, otp) => {
   const sender = {
     email: "friendbook.info@gmail.com",
     name: "Friendbook",
@@ -31,9 +30,9 @@ exports.sendAccountVerificationOtpOnEmail = tryCatch(async (email, otp) => {
   });
 
   return result;
-});
+};
 
-exports.sendForgotPasswordOtpOnEmail = tryCatch(async (email, otp) => {
+exports.sendForgotPasswordOtpOnEmail = async (email, otp) => {
   const sender = {
     email: "friendbook.info@gmail.com",
     name: "Friendbook",
@@ -53,4 +52,4 @@ exports.sendForgotPasswordOtpOnEmail = tryCatch(async (email, otp) => {
   });
 
   return result;
-});
+};
