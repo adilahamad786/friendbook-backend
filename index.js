@@ -11,6 +11,7 @@ const likeRoute = require('./src/routes/like');
 const googleOAuthRoute = require('./src/routes/googleOAuth');
 const errorMiddleware = require("./src/middleware/errorMiddleware");
 const connectDB = require("./src/config/database");
+const cors = require('cors');
 
 // Configure environment variables
 dotenv.config();
@@ -20,6 +21,10 @@ const port = process.env.PORT;
 connectDB()
 
 // middleware
+app.use(cors({
+  origin: 'https://friendbook-frontend.vercel.app',
+  methods: ["GET", "POST", "PATCH", "UPDATE", "DELETE", "PUT"]
+}));
 app.use(express.json());
 app.use(helmet());
 app.use(morgan("common"));
