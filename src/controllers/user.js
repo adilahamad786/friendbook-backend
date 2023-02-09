@@ -7,6 +7,8 @@ const { sendAccountVerificationOtpOnEmail, sendForgotPasswordOtpOnEmail } = requ
 const validator = require("validator");
 const ErrorHandler = require("../utils/errorHandler");
 const tryCatch = require("../middleware/tryCatch");
+const dotenv = require('dotenv');
+dotenv.config();
 
 
 // SEND OTP FOR EMAIL/ACCOUNT VERIFICATION
@@ -195,14 +197,14 @@ exports.update = tryCatch(async (req, res) => {
   if (req.files?.profilePicture) {
     req.user.profilePicture = req.files.profilePicture[0];
     req.user.profilePictureUrl =
-      `/api/user/profile-picture/${req.user._id}`;
+      `${process.env.SERVER_ENDPOINT}/api/user/profile-picture/${req.user._id}`.replace('/undefiend', '');
   }
 
   // Update coverPicture if provide
   if (req.files?.coverPicture) {
     req.user.coverPicture = req.files.coverPicture[0];
     req.user.coverPictureUrl =
-      `/api/user/cover-picture/${req.user._id}`;
+      `${process.env.SERVER_ENDPOINT}/api/user/cover-picture/${req.user._id}`.replace('/undefiend', '');
   }
 
   // Save current updated user in database
@@ -246,7 +248,7 @@ exports.serveUserCoverPicture = tryCatch(async (req, res) => {
 // CREATE/UPDATE USER SOTRY
 exports.createOrUpdateStroy = tryCatch(async (req, res) => {
   // Create story Url
-  const storyUrl = `/api/user/story/${req.user._id}`;
+  const storyUrl = `${process.env.SERVER_ENDPOINT}/api/user/story/${req.user._id}`.replace('/undefiend', '');
 
   // Update story
   await User.updateOne({ _id: req.user._id }, { story: req?.file, storyUrl });

@@ -3,6 +3,8 @@ const Like = require("../models/Like");
 const Comment = require("../models/Comment");
 const tryCatch = require("../middleware/tryCatch");
 const ErrorHandler = require("../utils/errorHandler");
+const dotenv = require('dotenv');
+dotenv.config();
 
 
 // CREATE/ADD A POST
@@ -21,7 +23,7 @@ exports.add = tryCatch(async (req, res) => {
   
   // Add imageUrl if provide an image
   if (req?.file)
-    createdPost.imageUrl = `/api/post/${createdPost._id}`;
+    createdPost.imageUrl = `${process.env.SERVER_ENDPOINT}/api/post/${createdPost._id}`.replace('/undefiend', '');
   
   // Save createdPost
   await createdPost.save();
@@ -51,7 +53,7 @@ exports.update = tryCatch(async (req, res) => {
   }
   
   // Update post according to provided update information
-  let post, imageUrl = `/api/post/${req.params.postId}`;
+  let post, imageUrl = `${process.env.SERVER_ENDPOINT}/api/post/${req.params.postId}`.replace('/undefiend', '');
   if (req.body?.message && req?.file) {
     post = await Post.findOneAndUpdate({ _id: req.params.postId, owner: req.user._id }, { message: req.body?.message, image: req?.file, imageUrl }, { select: "_id message likeCounter commentCounter imageUrl createdAt updatedAt" });
   } else if (req?.file) {

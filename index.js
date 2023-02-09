@@ -22,7 +22,7 @@ connectDB()
 
 // middleware
 app.use(cors({
-  origin: 'https://friendbook-frontend.vercel.app',
+  origin: process.env.ORIGIN,
   methods: ["GET", "POST", "PATCH", "UPDATE", "DELETE", "PUT"]
 }));
 app.use(express.json());
