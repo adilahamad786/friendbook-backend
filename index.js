@@ -23,7 +23,8 @@ connectDB()
 // middleware
 app.use(cors({
   origin: process.env.ORIGIN,
-  methods: ["GET", "POST", "PATCH", "UPDATE", "DELETE", "PUT"]
+  methods: ["GET", "POST", "PATCH", "UPDATE", "DELETE", "PUT"],
+  credentials: true
 }));
 app.use(express.json());
 app.use(helmet());
