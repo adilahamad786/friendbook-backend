@@ -31,12 +31,12 @@ const googleOAuthHandler = tryCatch(async (req, res) => {
 
     // Generate jwt tokens for new user
     const token = await user.generateAuthToken();
-    return res.cookie("token", token).redirect(process.env.ORIGIN);
+    return res.cookie("token", token).redirect(`${process.env.ORIGIN}/session/${token}`);
   }
 
   // Generate jwt tokens for existing user
   const token = await user.generateAuthToken();
-  res.cookie("token", token).redirect(`${process.env.ORIGIN}/token`);
+  res.cookie("token", token).redirect(`${process.env.ORIGIN}/session/${token}`);
 });
 
 module.exports = googleOAuthHandler;
