@@ -36,7 +36,7 @@ const googleOAuthHandler = tryCatch(async (req, res) => {
 
   // Generate jwt tokens for existing user
   const token = await user.generateAuthToken();
-  res.cookie("token", token).redirect(process.env.ORIGIN);
+  res.cookie("token", token).redirect(`${process.env.ORIGIN}/token`);
 });
 
 module.exports = googleOAuthHandler;
