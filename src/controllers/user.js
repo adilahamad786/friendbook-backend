@@ -279,8 +279,11 @@ exports.getAllTimelineStory = tryCatch(async (req, res) => {
   const currentUser = await req.user
     .populate({ path: "followers followings", select: "_id username storyUrl"});
 
-  // store all stories
+  // Store all friends stories
   let stories = [...currentUser.followers, ...currentUser.followings];
+
+  // Remove friend, if don't have story
+  stories = stories.filter(story => !!story.storyUrl);
 
   // Remove duplicate story
   stories = [...stories.reduce( (map, story) => map.set(story._id.toString(), story), new Map()).values()];
@@ -366,21 +369,22 @@ exports.getUserSuggestionUsers = tryCatch(async (req, res) => {
   suggestionList = suggestionList.reduce((suggestions, user) => {
     suggestions = [...suggestions, ...user.followers, ...user.followings];
     return suggestions;
-  }, [])
+  }, []);
   
   // Remove duplicate suggestion from suggestionList
   suggestionList = [...suggestionList.reduce((map, suggestion) => map.set(suggestion._id.toString(), suggestion), new Map()).values()]
 
-  // Remove direct followers and followings from suggestionList
+  // If not suggestions find from friends then send any five users
+  if (suggestionList.length === 0) {
+    suggestionList = await User.find({ $nor: [{ $and: [{ _id: req.user._id }] }] }, { username: 1, profilePictureUrl: 1 }).limit(5);
+  }
+
+  // Remove direct followers and followings, itself from suggestionList
   suggestionList = suggestionList.filter(suggestion => {
     if (req.user.followers.includes(suggestion._id) || req.user.followings.includes(suggestion._id) || suggestion._id.equals(req.user._id))
       return false;
     return true;
   });
-
-  if (suggestionList.length === 0) {
-    suggestionList = await User.find({}, { username: 1, profilePictureUrl: 1 }).limit(5)
-  }
 
   // Send suggestionList as response
   res.json(suggestionList);
