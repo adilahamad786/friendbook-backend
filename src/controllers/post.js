@@ -23,7 +23,7 @@ exports.add = tryCatch(async (req, res) => {
   
   // Add imageUrl if provide an image
   if (req?.file)
-    createdPost.imageUrl = `${process.env.SERVER_ENDPOINT}/api/post/${createdPost._id}`.replace('/undefiend', '');
+    createdPost.imageUrl = `${process.env.SERVER_ENDPOINT}/api/post/${createdPost._id}`;
   
   // Save createdPost
   await createdPost.save();

@@ -9,6 +9,7 @@ const ErrorHandler = require("../utils/errorHandler");
 const tryCatch = require("../middleware/tryCatch");
 const dotenv = require('dotenv');
 dotenv.config();
+const sharp = require('sharp');
 
 
 // SEND OTP FOR EMAIL/ACCOUNT VERIFICATION
@@ -196,15 +197,24 @@ exports.update = tryCatch(async (req, res) => {
   // Update profilePicture if provide
   if (req.files?.profilePicture) {
     req.user.profilePicture = req.files.profilePicture[0];
+
+    // Resize profilePicture size and change format as png
+    const buffer = await sharp(req.user.profilePicture.buffer).resize(122,122).png().toBuffer();
+    req.user.profilePicture.buffer = buffer;
     req.user.profilePictureUrl =
-      `${process.env.SERVER_ENDPOINT}/api/user/profile-picture/${req.user._id}`.replace('/undefiend', '');
+      `${process.env.SERVER_ENDPOINT}/api/user/profile-picture/${req.user._id}`;
   }
 
   // Update coverPicture if provide
   if (req.files?.coverPicture) {
     req.user.coverPicture = req.files.coverPicture[0];
+
+    // Resize profilePicture size and change format as png
+    const buffer = await sharp(req.user.coverPicture.buffer).resize(720,160).png().toBuffer();
+    req.user.coverPicture.buffer = buffer;
+
     req.user.coverPictureUrl =
-      `${process.env.SERVER_ENDPOINT}/api/user/cover-picture/${req.user._id}`.replace('/undefiend', '');
+      `${process.env.SERVER_ENDPOINT}/api/user/cover-picture/${req.user._id}`;
   }
 
   // Save current updated user in database
@@ -248,10 +258,13 @@ exports.serveUserCoverPicture = tryCatch(async (req, res) => {
 // CREATE/UPDATE USER SOTRY
 exports.createOrUpdateStroy = tryCatch(async (req, res) => {
   // Create story Url
-  const storyUrl = `${process.env.SERVER_ENDPOINT}/api/user/story/${req.user._id}`.replace('/undefiend', '');
+  const storyUrl = `${process.env.SERVER_ENDPOINT}/api/user/story/${req.user._id}`;
+
+  // Resize story size and change format as png
+  req.file.buffer = await sharp(req.file.buffer).resize(112,160).png().toBuffer();
 
   // Update story
-  await User.updateOne({ _id: req.user._id }, { story: req?.file, storyUrl });
+  await User.updateOne({ _id: req.user._id }, { story: req.file, storyUrl });
 
   // Send story updated response 
   res.status(201).json({ message: "Story updated!" });
@@ -374,17 +387,17 @@ exports.getUserSuggestionUsers = tryCatch(async (req, res) => {
   // Remove duplicate suggestion from suggestionList
   suggestionList = [...suggestionList.reduce((map, suggestion) => map.set(suggestion._id.toString(), suggestion), new Map()).values()]
 
-  // If not suggestions find from friends then send any five users
-  if (suggestionList.length === 0) {
-    suggestionList = await User.find({ $nor: [{ $and: [{ _id: req.user._id }] }] }, { username: 1, profilePictureUrl: 1 }).limit(5);
-  }
-
   // Remove direct followers and followings, itself from suggestionList
   suggestionList = suggestionList.filter(suggestion => {
     if (req.user.followers.includes(suggestion._id) || req.user.followings.includes(suggestion._id) || suggestion._id.equals(req.user._id))
       return false;
     return true;
   });
+
+  // If not suggestions find from friends then send any five users
+  if (suggestionList.length === 0) {
+    suggestionList = await User.find({ $nor: [{ $and: [{ _id: req.user._id }] }] }, { username: 1, profilePictureUrl: 1 }).limit(5);
+  }
 
   // Send suggestionList as response
   res.json(suggestionList);
